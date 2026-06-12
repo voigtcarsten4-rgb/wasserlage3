@@ -9,6 +9,7 @@ import { initExplorer } from './ui/explorer';
 import { initCommunity } from './ui/community';
 import { renderSky, startSkyTicker } from './ui/sky';
 import { initMelden } from './ui/melden';
+import { initTouren } from './ui/touren';
 
 function applyTod(sunrise?: string, sunset?: string) {
   const now = new Date(); const mins = now.getHours()*60 + now.getMinutes();
@@ -65,6 +66,7 @@ async function boot() {
   applyTod();
   initSafety();
   initCommunity();
+  initTouren();
   initMelden(()=>setTimeout(initCommunity, 1200));
   renderSky(null);
   const mapP = initMap('map').catch(e => { console.error('Karte konnte nicht geladen werden', e); return null; });

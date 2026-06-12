@@ -250,3 +250,37 @@ html[data-tod="night"] .comm-form input,html[data-tod="night"] .comm-form select
 .cf-hint{font-size:11px;color:var(--ink2)}
 #cfSend{border:0;cursor:pointer}
 .comm-badge{font-size:9.5px;font-weight:800;border-radius:999px;padding:2px 8px;background:#fdf3dd;color:#8a6411;margin-left:auto}
+
+
+/* ═══ Community 3.0 · Foto, Bestätigen, Auth (Phase C) ═══ */
+.comm-photo{width:100%;max-height:220px;object-fit:cover;border-radius:10px;margin:8px 0 4px;border:1px solid rgba(255,255,255,.12)}
+.comm-badge.ok{background:rgba(46,204,113,.16);color:#7ef0a8;border-color:rgba(46,204,113,.35)}
+.comm-confirm{margin-top:10px;align-self:flex-start;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:inherit;border-radius:999px;padding:6px 14px;font-size:.85rem;cursor:pointer;transition:all .2s}
+.comm-confirm:hover:not(:disabled){background:rgba(46,204,113,.16);border-color:rgba(46,204,113,.4)}
+.comm-confirm.done{background:rgba(46,204,113,.14);color:#7ef0a8;cursor:default}
+.cf-auth{align-items:center;gap:8px;flex-wrap:wrap}
+.cf-auth input{flex:1;min-width:200px}
+.cf-auth-ok{font-size:.85rem;opacity:.9}
+.cf-auth-out{background:none;border:none;color:inherit;opacity:.6;text-decoration:underline;cursor:pointer;font-size:.8rem}
+.cf-photo{display:flex;align-items:center;gap:10px;font-size:.85rem;opacity:.95;cursor:pointer}
+.cf-photo.off{opacity:.45;cursor:not-allowed}
+.cf-photo input{font-size:.8rem}
+
+/* ═══ Touren & Events (Phase C) ═══ */
+.tour-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;margin:14px 0 8px}
+.tour-card{padding:16px;border-radius:14px;display:flex;flex-direction:column;gap:8px;transition:transform .25s}
+.tour-card:hover{transform:translateY(-3px)}
+.tour-head{display:flex;flex-direction:column;gap:2px}
+.tour-head b{font-size:1.02rem}
+.tour-sub{font-size:.8rem;opacity:.7}
+.tour-facts{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:7px}
+.tour-facts li{font-size:.82rem;line-height:1.5;padding-left:24px;position:relative;opacity:.92}
+.tour-facts li .ic{position:absolute;left:0;top:0}
+.ev-h{margin:22px 0 10px;font-size:1.05rem}
+.ev-list{display:flex;flex-direction:column;gap:8px}
+.ev-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:12px}
+.ev-ic{font-size:1.3rem}
+.ev-main{display:flex;flex-direction:column;flex:1;min-width:0}
+.ev-main b{font-size:.92rem}
+.ev-main span{font-size:.78rem;opacity:.7}
+.ev-date{font-size:.82rem;font-weight:600;white-space:nowrap;opacity:.9}

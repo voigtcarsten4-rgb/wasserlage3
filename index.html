@@ -32,7 +32,7 @@
     <a class="tn-brand" href="#top"><span class="brand-wave">≈</span> Wasserlage</a>
     <div class="tn-links">
       <a href="#top">Lage</a><a href="#karte">Karte</a><a href="#entdecken">Entdecken</a>
-      <a href="#sicherheit">Sicherheit</a><a href="#community">Community</a>
+      <a href="#sicherheit">Sicherheit</a><a href="#touren">Reviere</a><a href="#community">Community</a>
       <a href="#partner">Partner</a><a href="#wavebite">Wave Bite</a>
     </div>
   </nav>
@@ -157,6 +157,16 @@
   </section>
 
   <!-- ═══ 6 · COMMUNITY ═══ -->
+  <!-- ═══ 6b · TOUREN & EVENTS (Phase C) ═══ -->
+  <section class="sect" id="touren">
+    <h2 class="sect-h">🧭 Reviere & Events</h2>
+    <p class="sect-sub">Kuratiertes Revierwissen zur Orientierung — keine Navigation, verbindlich bleibt ELWIS. <span class="badge" id="bdgTouren">lädt…</span></p>
+    <div class="tour-grid" id="tourGrid"></div>
+    <h3 class="ev-h">🎉 Events am Wasser · Saison</h3>
+    <div class="ev-list" id="eventList"></div>
+    <p class="comm-cta"><small>Termine ohne Gewähr · Quelle: kuratierte Saisonliste. Eigenes Event? Über „Melden" einreichen.</small></p>
+  </section>
+
   <section class="sect" id="community">
     <h2 class="sect-h">💬 Community — Augen auf dem Wasser</h2>
     <p class="sect-sub">Echte Hinweise von echten Bootsfahrern. <span class="badge" id="bdgComm">lädt…</span></p>
@@ -172,10 +182,15 @@
         <input id="cfName" placeholder="Dein Name (optional)" autocomplete="off">
         <button type="button" class="exp-act" id="cfGeo">📍 Standort übernehmen</button>
       </div>
+      <div class="cf-row cf-auth" id="cfAuth"></div>
+      <div class="cf-row">
+        <label id="cfPhotoLbl" class="cf-photo off">📷 Foto anhängen (Login nötig)
+          <input id="cfPhoto" type="file" accept="image/jpeg,image/png,image/webp" disabled></label>
+      </div>
       <p class="cf-hint" id="cfHint">Ohne Standort erscheint die Meldung nur im Feed (kein Karten-Pin). Meldungen sind öffentlich und ungeprüft.</p>
       <button class="cta-btn" id="cfSend">Meldung absenden</button>
     </div>
-    <p class="comm-cta"><small>Status-Stufen: 🟡 ungeprüft (Community) · 🟢 von Community bestätigt (folgt) · 🔵 amtlich = nur ELWIS-Sektion. Konten, Fotos & Vertrauensscore: nächste Ausbaustufe.</small></p>
+    <p class="comm-cta"><small>Status-Stufen: 🟡 ungeprüft (Community) · 🟢 von Community bestätigt (ab 3× „Stimmt noch") · 🔵 amtlich = nur ELWIS-Sektion. Fotos: mit kostenlosem Login-Link (keine Passwörter, keine Werbung).</small></p>
   </section>
 
   <!-- ═══ 7 · B2B / PARTNER ═══ -->
