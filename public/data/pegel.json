@@ -1,0 +1,165 @@
+{
+ "generated_at": "2026-06-10",
+ "source": "Pegelonline WSV (UUIDs aus Wasserlage 2.0, verifiziert 10.06.2026)",
+ "groups": [
+  {
+   "icon": "🏞️",
+   "title": "Havel & Seen",
+   "stations": [
+    {
+     "name": "Berlin-Spandau",
+     "water": "Havel",
+     "uuid": "2c68509c-bf1e-4866-9ec4-b26b231e5e04"
+    },
+    {
+     "name": "Potsdam",
+     "water": "Havel",
+     "uuid": "5e10e1e7-9115-4bd7-ad57-e2062f516891"
+    },
+    {
+     "name": "Ketzin",
+     "water": "Untere Havel",
+     "uuid": "d2d025a2-e691-4986-b9c4-923e7f1a47c3"
+    },
+    {
+     "name": "Brandenburg",
+     "water": "Untere Havel",
+     "uuid": "f8806fa4-cc2c-46e8-9b87-6231da0e3ddd"
+    },
+    {
+     "name": "Rathenow",
+     "water": "Untere Havel",
+     "uuid": "4de8a51c-4c6a-4334-92dd-0b1cbb8e0573"
+    },
+    {
+     "name": "Plaue",
+     "water": "Untere Havel",
+     "uuid": "9829cab0-746b-4d10-9124-79ddda0a843e"
+    },
+    {
+     "name": "Havelberg",
+     "water": "Untere Havel",
+     "uuid": "c203d5fb-96d7-4643-b2ef-b13b1d88c75b"
+    }
+   ]
+  },
+  {
+   "icon": "🌿",
+   "title": "Spree & Dahme",
+   "stations": [
+    {
+     "name": "Berlin-Mühlendamm",
+     "water": "Spree",
+     "uuid": "09e15cf6-f155-4b76-b92f-6c260839121c"
+    },
+    {
+     "name": "Berlin-Charlottenburg",
+     "water": "Spree",
+     "uuid": "d89eb759-58c4-43f4-9fe4-e6a21af23f5c"
+    },
+    {
+     "name": "Berlin-Köpenick",
+     "water": "Spree",
+     "uuid": "47d3e815-c556-4e1b-93de-9fe07329fb00"
+    },
+    {
+     "name": "Berlin-Schmöckwitz",
+     "water": "Dahme",
+     "uuid": "6b595707-8c47-4bc7-a803-dbc327775c26"
+    },
+    {
+     "name": "Neue Mühle",
+     "water": "Dahme",
+     "uuid": "c9a6c3bf-02d4-4945-83e8-b7c6cf9701fa"
+    },
+    {
+     "name": "Große Tränke",
+     "water": "Müggelspree",
+     "uuid": "cfad4ee5-580f-4df2-918b-bc89c615ad0b"
+    },
+    {
+     "name": "Fürstenwalde",
+     "water": "Spree",
+     "uuid": "e7440532-8033-44d6-99b4-037a05da0c54"
+    },
+    {
+     "name": "Wernsdorf",
+     "water": "Spree-Oder",
+     "uuid": "1b8ac909-8377-4887-ab70-748de2dd9775"
+    },
+    {
+     "name": "Woltersdorf",
+     "water": "Rüdersdorf",
+     "uuid": "99989609-7bd8-4f91-bd55-ad31fbf55ee4"
+    }
+   ]
+  },
+  {
+   "icon": "🌊",
+   "title": "Oder & Grenzgewässer",
+   "stations": [
+    {
+     "name": "Frankfurt (Oder)",
+     "water": "Oder",
+     "uuid": "bffdf7f2-6200-42a2-a4bc-a8111e27e043"
+    },
+    {
+     "name": "Eisenhüttenstadt",
+     "water": "Oder",
+     "uuid": "8675aa70-cfbc-471a-8566-dcc851f201d3"
+    },
+    {
+     "name": "Ratzdorf",
+     "water": "Oder",
+     "uuid": "ca3f535b-4a32-4dd7-a56b-2ac20dea4472"
+    },
+    {
+     "name": "Kienitz",
+     "water": "Oder",
+     "uuid": "6298a8f9-7c77-4605-a55a-278c61cc8f50"
+    },
+    {
+     "name": "Schwedt",
+     "water": "Oder",
+     "uuid": "e28babaa-7801-49a2-9c28-58701549ce5d"
+    },
+    {
+     "name": "Hohensaaten-Finow",
+     "water": "Oder",
+     "uuid": "f7a639a4-b824-445c-b158-108ebd70cc9a"
+    }
+   ]
+  },
+  {
+   "icon": "🔧",
+   "title": "Kanäle & Schleusen",
+   "stations": [
+    {
+     "name": "Kleinmachnow",
+     "water": "Teltowkanal",
+     "uuid": "38414157-862e-428a-ae2c-77ff79871227"
+    },
+    {
+     "name": "Lehnitz",
+     "water": "Havel-Oder-Ws",
+     "uuid": "5bb1f56d-7c56-4b01-9da0-2a08a0aaedeb"
+    },
+    {
+     "name": "Niederfinow",
+     "water": "Havel-Oder-Ws",
+     "uuid": "4eec6b25-6b02-4448-b5db-10843c8d6175"
+    },
+    {
+     "name": "Schönwalde",
+     "water": "Havelkanal",
+     "uuid": "b6650b13-582b-4d54-adac-991ac140e039"
+    },
+    {
+     "name": "Zehdenick",
+     "water": "Obere Havel",
+     "uuid": "721d7dbf-c947-405c-8dba-e672a091f4c0"
+    }
+   ]
+  }
+ ]
+}

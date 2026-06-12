@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="de" data-tod="day">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Wasserlage · Dein Revier live — Berlin & Brandenburg</title>
+<meta name="description" content="Wasserlage — das digitale Revier-Cockpit für Berlin & Brandenburg: amtliche Lage (ELWIS), Pegel, Wetter, Gelbe Welle, Häfen, Schleusen, Touren & Community. Powered by Wave Bite.">
+<meta name="robots" content="index,follow">
+<meta property="og:title" content="Wasserlage · Dein Revier live">
+<meta property="og:description" content="Kann ich heute fahren? Amtliche Lage, Pegel, Wetter & die Service-Karte fürs Wasser — Berlin & Brandenburg.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="de_DE">
+<meta name="theme-color" content="#04121f">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="/wasserlage/wasserlage-icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2304121f'/%3E%3Cpath d='M10 36c6-7 12-7 18 0s12 7 18 0' stroke='%2338d6f5' stroke-width='5' fill='none' stroke-linecap='round'/%3E%3Cpath d='M10 46c6-7 12-7 18 0s12 7 18 0' stroke='%23e8b54d' stroke-width='5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebApplication","name":"Wasserlage","applicationCategory":"TravelApplication",
+ "description":"Digitales Revier-Cockpit für Bootsfahrer in Berlin & Brandenburg: amtliche Lage, Pegel, Wetter, Service-Karte, Touren und Community.",
+ "operatingSystem":"Web","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},
+ "creator":{"@type":"Organization","name":"Wave Bite","url":"https://wave-bite.com"}}
+</script>
+</head>
+<body>
+<div id="app">
+
+  <!-- ═══ NAVIGATION ═══ -->
+  <nav class="topnav" id="topnav" aria-label="Hauptnavigation">
+    <a class="tn-brand" href="#top"><span class="brand-wave">≈</span> Wasserlage</a>
+    <div class="tn-links">
+      <a href="#top">Lage</a><a href="#karte">Karte</a><a href="#entdecken">Entdecken</a>
+      <a href="#sicherheit">Sicherheit</a><a href="#community">Community</a>
+      <a href="#partner">Partner</a><a href="#wavebite">Wave Bite</a>
+    </div>
+  </nav>
+
+  <!-- ═══ 1 · HERO / LIVE-LAGE ═══ -->
+  <header class="hero" id="top">
+    <div class="hero-sky"></div><div class="hero-stars" aria-hidden="true"></div><div class="hero-wx" id="heroWx" aria-hidden="true"></div>
+    <div class="hero-waves" aria-hidden="true">
+      <svg class="wv wv1" viewBox="0 0 1440 120" preserveAspectRatio="none"><path d="M0,60 C240,100 480,20 720,60 C960,100 1200,20 1440,60 L1440,120 L0,120 Z"/></svg>
+      <svg class="wv wv2" viewBox="0 0 1440 120" preserveAspectRatio="none"><path d="M0,70 C240,30 480,110 720,70 C960,30 1200,110 1440,70 L1440,120 L0,120 Z"/></svg>
+      <svg class="wv wv3" viewBox="0 0 1440 120" preserveAspectRatio="none"><path d="M0,80 C360,40 720,110 1080,70 C1260,50 1380,80 1440,75 L1440,120 L0,120 Z"/></svg>
+    </div>
+    <div class="hero-inner">
+      <div class="brand"><span class="brand-wave">≈</span> Wasserlage <span class="brand-v">3.0 Beta</span>
+        <span class="brand-sub">powered by Wave Bite</span></div>
+      <p class="hero-q">Kann ich heute fahren?</p>
+      <h1 class="hero-ampel" id="ampel"><span class="dot loading"></span> Lage wird geladen …</h1>
+      <p class="hero-src" id="ampelSrc">Quellen: ELWIS · Pegelonline · Open-Meteo</p>
+      <div class="chips" id="heroChips"></div>
+      <div class="instrument" id="instrument" aria-label="Sonnenstand">
+        <svg viewBox="0 0 220 120">
+          <defs>
+            <linearGradient id="arcg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="rgba(143,233,255,.15)"/><stop offset=".5" stop-color="rgba(232,181,77,.85)"/><stop offset="1" stop-color="rgba(143,233,255,.15)"/></linearGradient>
+            <linearGradient id="brass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f2d28a"/><stop offset=".45" stop-color="#c9921f"/><stop offset=".55" stop-color="#8a6411"/><stop offset="1" stop-color="#e8b54d"/></linearGradient>
+            <radialGradient id="glass" cx=".5" cy="1" r="1"><stop offset="0" stop-color="rgba(143,233,255,.14)"/><stop offset=".7" stop-color="rgba(143,233,255,.04)"/><stop offset="1" stop-color="rgba(143,233,255,0)"/></radialGradient>
+          </defs>
+          <path d="M10,105 A100,100 0 0 1 210,105" fill="url(#glass)"/>
+          <path d="M12,105 A98,98 0 0 1 208,105" fill="none" stroke="url(#brass)" stroke-width="1.2" opacity=".9"/>
+          <g id="ticks" stroke="url(#brass)" stroke-width="1.4" opacity=".85"></g>
+          <path d="M15,105 A95,95 0 0 1 205,105" fill="none" stroke="url(#arcg)" stroke-width="2.5" stroke-dasharray="3 5"/>
+          <line x1="15" y1="105" x2="205" y2="105" stroke="rgba(143,233,255,.25)" stroke-width="1"/>
+          <circle id="sunDot" cx="110" cy="12" r="7" fill="#ffd76a"/>
+          <text id="sunT1" x="110" y="62" text-anchor="middle" font-size="13" font-weight="700" fill="#eafaff" font-family="Sora"></text>
+          <text id="sunT2" x="110" y="78" text-anchor="middle" font-size="8.5" fill="rgba(234,250,255,.6)" letter-spacing="2"></text>
+          <text x="15" y="117" font-size="8" fill="rgba(234,250,255,.55)" id="srT"></text>
+          <text x="205" y="117" font-size="8" fill="rgba(234,250,255,.55)" text-anchor="end" id="suT"></text>
+        </svg>
+      </div>
+      <script>(function(){var g=document.getElementById('ticks');if(!g)return;var s='';
+        for(var a=0;a<=180;a+=15){var r1=92,r2=(a%45===0)?84:88,rad=Math.PI*a/180;
+          var x1=110+r1*Math.cos(Math.PI-rad),y1=105-r1*Math.sin(rad),x2=110+r2*Math.cos(Math.PI-rad),y2=105-r2*Math.sin(rad);
+          s+='<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'"/>';}
+        g.innerHTML=s;})();</script>
+      <p class="hero-reco" id="heroReco"></p>
+    </div>
+  </header>
+
+  <!-- ═══ MODI ═══ -->
+  <nav class="modes" id="modes" aria-label="Zielgruppen-Modus"></nav>
+
+  <!-- ═══ 2 · KARTE ═══ -->
+  <section class="map-stage" id="karte">
+    <div id="map" role="application" aria-label="Gewässerkarte Berlin & Brandenburg"></div>
+    <div class="map-legend glass" id="legend"></div>
+    <div class="map-attrib-extra">Seezeichen © OpenSeaMap · POI-Daten: Wasserlage (Quelle & Stand je Popup)</div>
+  </section>
+
+  <!-- ═══ 3 · KAPITÄNS-DASHBOARD ═══ -->
+  <main class="dash" id="dashboard">
+    <section class="panel glass" id="pnlMeldungen">
+      <h2>⚠️ Amtliche Lage <span class="badge" id="bdgElwis">lädt…</span></h2>
+      <div class="panel-body" id="meldungen"></div>
+    </section>
+    <section class="panel glass" id="pnlWetter">
+      <h2>🌤️ Wetter & Wind <span class="badge" id="bdgWetter">lädt…</span></h2>
+      <div class="panel-body" id="wetter"></div>
+    </section>
+    <section class="panel glass" id="pnlPegel">
+      <h2>📏 Pegel & Fahrrinne <span class="badge" id="bdgPegel">lädt…</span></h2>
+      <div class="panel-body" id="pegel"></div>
+    </section>
+  </main>
+
+  <!-- ═══ 4 · REVIER ENTDECKEN ═══ -->
+  <section class="sect" id="entdecken">
+    <h2 class="sect-h">🧭 Revier entdecken</h2>
+    <p class="sect-sub">Häfen, Gelbe Welle, Gastronomie, Badestellen & mehr — jeder Eintrag mit Quelle und Datenstand.</p>
+    <div class="exp-bar glass">
+      <input id="expQ" type="search" placeholder="Suchen: Marina, Tankstelle, Café …" autocomplete="off">
+      <select id="expKind"><option value="">Alle Kategorien</option></select>
+      <select id="expReg"><option value="">Alle Reviere</option></select>
+    </div>
+    <div class="exp-grid" id="expGrid"></div>
+    <div class="more" id="expMore" hidden>▾ Mehr anzeigen</div>
+  </section>
+
+  <!-- ═══ 5 · SICHERHEITSANKER ═══ -->
+  <section class="sect" id="sicherheit">
+    <h2 class="sect-h">🛟 Sicherheitsanker</h2>
+    <p class="sect-sub">Das Wichtigste für den Ernstfall — und die Routine davor.</p>
+    <div class="safe-grid">
+      <div class="panel glass safe-sos">
+        <h3>🆘 Im Notfall</h3>
+        <a class="sos-btn" href="tel:112">📞 112 anrufen<small>Notruf — Feuerwehr & Rettung</small></a>
+        <a class="sos-btn second" href="tel:110">📞 110 anrufen<small>Polizei / Wasserschutzpolizei</small></a>
+        <button class="sos-btn pos" id="sharePos">📍 Meine Position anzeigen<small>Koordinaten für die Leitstelle</small></button>
+        <p class="safe-note">Ruhig bleiben · Position durchgeben (Gewässer, km, Ufer) · Rettungswesten an · UKW Kanal 16 mithören. Wasserschutzpolizei-Stationen findest du auf der Karte (Modus „Notfall").</p>
+      </div>
+      <div class="panel glass">
+        <h3>✅ Vor dem Ablegen</h3>
+        <ul class="check" id="checklist">
+          <li>Lage gecheckt? Ampel, Sperrungen & Wind oben prüfen</li>
+          <li>Rettungswesten für alle an Bord — Kinder immer an</li>
+          <li>Boots- & Führerscheinpapiere dabei (Kontrollen)</li>
+          <li>Max. 0,5 ‰ am Ruder — besser 0,0</li>
+          <li>Kraftstoff & Reserve geprüft, Bilge trocken</li>
+          <li>Lichterführung ab Sonnenuntergang Pflicht</li>
+          <li>Handy geladen + wasserdicht verpackt</li>
+        </ul>
+      </div>
+      <div class="panel glass">
+        <h3>⚓ Gut zu wissen</h3>
+        <ul class="check info">
+          <li><b>UKW Kanal 16</b> = Not- & Anrufkanal · Schiff–Schiff meist Kanal 10</li>
+          <li><b>Sog & Wellenschlag</b> vermeiden — gilt rechtlich als Gefährdung</li>
+          <li><b>Naturschutzzonen & Badestellen</b>: Abstand und Schrittgeschwindigkeit</li>
+          <li><b>Berufsschifffahrt hat Vorrang</b> — Kurs früh & deutlich ändern</li>
+          <li>Verbindliche Regeln & Meldungen: <a href="https://www.elwis.de" target="_blank" rel="noopener">ELWIS.de</a></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 6 · COMMUNITY ═══ -->
+  <section class="sect" id="community">
+    <h2 class="sect-h">💬 Community — Augen auf dem Wasser</h2>
+    <p class="sect-sub">Echte Hinweise von echten Bootsfahrern. <span class="badge" id="bdgComm">lädt…</span></p>
+    <div class="comm-grid" id="commGrid"></div>
+    <div class="panel glass comm-form">
+      <h3>＋ Jetzt melden — hilf anderen auf dem Wasser</h3>
+      <div class="cf-row">
+        <select id="cfCat"><option value="gefahr">⚠️ Gefahr</option><option value="hinweis" selected>ℹ️ Hinweis/Tipp</option><option value="liegeplatz">🅿️ Liegeplatz frei</option><option value="erlebnis">⭐ Schöner Ort</option></select>
+        <input id="cfPlace" placeholder="Ort / Gewässer / km" autocomplete="off">
+      </div>
+      <textarea id="cfBody" rows="3" placeholder="Was sollen andere wissen?"></textarea>
+      <div class="cf-row">
+        <input id="cfName" placeholder="Dein Name (optional)" autocomplete="off">
+        <button type="button" class="exp-act" id="cfGeo">📍 Standort übernehmen</button>
+      </div>
+      <p class="cf-hint" id="cfHint">Ohne Standort erscheint die Meldung nur im Feed (kein Karten-Pin). Meldungen sind öffentlich und ungeprüft.</p>
+      <button class="cta-btn" id="cfSend">Meldung absenden</button>
+    </div>
+    <p class="comm-cta"><small>Status-Stufen: 🟡 ungeprüft (Community) · 🟢 von Community bestätigt (folgt) · 🔵 amtlich = nur ELWIS-Sektion. Konten, Fotos & Vertrauensscore: nächste Ausbaustufe.</small></p>
+  </section>
+
+  <!-- ═══ 7 · B2B / PARTNER ═══ -->
+  <section class="sect" id="partner">
+    <h2 class="sect-h">🏢 Für Marinas, Gastronomie & Tourismus</h2>
+    <p class="sect-sub">Wasserlage bringt qualifizierte Wassergäste direkt zu dir — mit verifizierten Daten statt Werbeversprechen.</p>
+    <div class="b2b-grid">
+      <div class="panel glass b2b"><h3>Free Listing</h3><div class="b2b-price">0 €</div>
+        <ul class="check info"><li>Basiseintrag auf Karte & im Explorer</li><li>Kategorie, Ort, Kontakt</li><li>Status „unverifiziert"</li></ul></div>
+      <div class="panel glass b2b hot"><div class="b2b-flag">Beliebt</div><h3>Verified Partner</h3><div class="b2b-price">ab 19 €/Monat</div>
+        <ul class="check info"><li>✓ Verifiziert-Siegel & Qualitätsstatus</li><li>Fotos, Ausstattung, Öffnungszeiten</li><li>Self-Service-Datenpflege</li><li>Verlinkung Web & Telefon</li></ul></div>
+      <div class="panel glass b2b"><h3>Marina Pro</h3><div class="b2b-price">ab 99 €/Monat</div>
+        <ul class="check info"><li>Top-Platzierung & Karten-Highlight</li><li>Gastlieger-Anfragen (Leads) direkt aufs Postfach</li><li>Event- & Angebots-Slots</li><li>Reichweiten-Statistik</li></ul></div>
+      <div class="panel glass b2b"><h3>Tourismus & White Label</h3><div class="b2b-price">auf Anfrage</div>
+        <ul class="check info"><li>Eigene Revier-Instanz mit Ihrem Branding</li><li>Redaktionszugang für Ihre Region</li><li>Datenexport & API</li><li>Wave-Bite-Eventkooperationen</li></ul></div>
+    </div>
+    <p class="b2b-cta"><a class="cta-btn" href="mailto:info@wave-bite.com?subject=Wasserlage%20Partner-Anfrage">Partner werden — Anfrage senden</a>
+      <small>Pilotregion Berlin/Brandenburg · Start zur Saison</small></p>
+  </section>
+
+  <!-- ═══ 8 · WAVE BITE ═══ -->
+  <section class="sect wb" id="wavebite">
+    <h2 class="sect-h">🌊 Teil der Wave-Bite-Welt</h2>
+    <p class="sect-sub">Wasserlage ist das digitale Zuhause der Wave-Bite-Community — schwimmendes Premium-Bistro, Events & Erlebnisse auf dem Wasser in Berlin/Brandenburg.</p>
+    <div class="wb-row">
+      <a class="cta-btn gold" href="https://wave-bite.com/" target="_blank" rel="noopener">🌊 Wave Bite entdecken</a>
+      <a class="cta-btn ghost" href="https://voigtcarsten4-rgb.github.io/wave-bite-water-patrol/?from=wasserlage" target="_blank" rel="noopener">🚤 Water Patrol Game</a>
+    </div>
+  </section>
+
+  <!-- ═══ 9/10 · FOOTER: Rechtliches, Quellen, App ═══ -->
+  <footer class="foot" id="legal">
+    <p class="disc">⚠ <b>Kein amtlicher Informationsdienst, keine Navigationsgrundlage.</b> Verbindlich: <a href="https://www.elwis.de" target="_blank" rel="noopener">ELWIS.de</a>. Quellen: ELWIS NtS 4.0 · Pegelonline WSV · Open-Meteo · OpenFreeMap/OSM · OpenSeaMap · DTV Gelbe-Welle-Liste (03/2026). Jeder POI trägt Quelle & Datenstand im Popup.</p>
+    <details class="legal-box"><summary>Impressum & Datenschutz</summary>
+      <div class="legal-txt">
+        <p><b>Anbieter:</b> Wave Bite by Voigt · Einzelfirma (Schweiz) · Inhaber: Carsten Voigt<br>
+        Hauptstrasse 23 · 4242 Laufen · Schweiz · E-Mail: info@wave-bite.com · Tel: +41 78 406 16 67<br>
+        UID: CHE-431.108.641 · HR-Amt Basel-Landschaft · Operativ in DE: Wave Bite UG (haftungsbeschränkt)</p>
+        <p><b>Datenschutz (Kurzfassung):</b> Diese Beta setzt keine Werbe-Cookies und kein Google Analytics ein. Lokale Speicherung nur für Funktion (z.B. Tag/Nacht). Beim Laden werden Karten- und Wetterdaten von OpenFreeMap, OpenSeaMap, Open-Meteo und Pegelonline abgerufen (IP technisch bedingt). Community-Beiträge werden über Supabase (EU) gelesen. Vollständige Erklärung: <a href="https://voigtcarsten4-rgb.github.io/wasserlage/" rel="noopener">Wasserlage 2.0 → Impressum & Datenschutz</a>.</p>
+      </div>
+    </details>
+    <p><b>Wasserlage 3.0 Beta</b> · ein Wave-Bite-Produkt · <a href="https://voigtcarsten4-rgb.github.io/wasserlage/" rel="noopener">Stabile Version 2.0</a> · Als App: über Browser-Menü „Zum Startbildschirm hinzufügen"</p>
+  </footer>
+</div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
