@@ -85,9 +85,18 @@
 
   <!-- ═══ 2 · KARTE ═══ -->
   <section class="map-stage" id="karte">
-    <div id="map" role="application" aria-label="Gewässerkarte Berlin & Brandenburg"></div>
+    <div class="map-top glass">
+      <div class="map-search">
+        <input id="mapQ" type="search" placeholder="🔍 Ort, Hafen, Schleuse, Marina, Wasserstraße …" autocomplete="off" aria-label="Kartensuche">
+        <div class="map-search-res" id="mapQRes" hidden></div>
+      </div>
+      <select id="mapLand" aria-label="Bundesland wählen">
+        <option value="">🇩🇪 Deutschland — Bundesland wählen</option>
+      </select>
+    </div>
+    <div id="map" role="application" aria-label="Gewässerkarte Deutschland"></div>
     <div class="map-legend glass" id="legend"></div>
-    <div class="map-attrib-extra">Seezeichen © OpenSeaMap · POI-Daten: Wasserlage (Quelle & Stand je Popup)</div>
+    <div class="map-attrib-extra">Seezeichen © OpenSeaMap · POI-Daten: Wasserlage (Quelle & Stand je Popup) · Weitere Reviere laden automatisch beim Bewegen der Karte</div>
   </section>
 
   <!-- ═══ 3 · KAPITÄNS-DASHBOARD ═══ -->
@@ -196,7 +205,7 @@
   <!-- ═══ 7 · B2B / PARTNER ═══ -->
   <section class="sect" id="partner">
     <h2 class="sect-h">🏢 Für Marinas, Gastronomie & Tourismus</h2>
-    <p class="sect-sub">Wasserlage bringt qualifizierte Wassergäste direkt zu dir — mit verifizierten Daten statt Werbeversprechen.</p>
+    <p class="sect-sub">Wasserlage bringt qualifizierte Wassergäste direkt zu dir — mit verifizierten Daten statt Werbeversprechen. Profil-Typen: Marina · Hafen · Restaurant am Wasser · Charterbasis · Tourismusverband · Gemeinde/Revier. Verifizierte Partner tragen das ★-Siegel direkt im Karten-Popup.</p>
     <div class="b2b-grid">
       <div class="panel glass b2b"><h3>Free Listing</h3><div class="b2b-price">0 €</div>
         <ul class="check info"><li>Basiseintrag auf Karte & im Explorer</li><li>Kategorie, Ort, Kontakt</li><li>Status „unverifiziert"</li></ul></div>

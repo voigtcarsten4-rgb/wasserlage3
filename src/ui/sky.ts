@@ -22,12 +22,20 @@ export function renderSky(w: Weather|null) {
   /* Wetter-Atmosphäre */
   const wx = document.getElementById('heroWx'); if (!wx) return;
   const code = w?.code ?? 1;
-  const mode = code >= 95 ? 'storm' : ((code>=51&&code<=67)||(code>=80&&code<=94)) ? 'rain' : (code>=2&&code<=48) ? 'cloudy' : 'clear';
+  const mode = code >= 95 ? 'storm'
+    : (code>=71&&code<=77)||code===85||code===86 ? 'snow'
+    : ((code>=51&&code<=67)||(code>=80&&code<=84)) ? 'rain'
+    : code===45||code===48 ? 'fog'
+    : (code>=2&&code<=44) ? 'cloudy' : 'clear';
   document.body.dataset.wx = mode;
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   let h = '';
   if (mode==='rain' || mode==='storm') for (let i=0;i<22;i++)
     h += `<span class="wxdrop" style="left:${(Math.random()*100).toFixed(1)}%;animation-duration:${(0.7+Math.random()*0.5).toFixed(2)}s;animation-delay:${(Math.random()*1.5).toFixed(2)}s"></span>`;
+  if (mode==='snow') for (let i=0;i<26;i++)
+    h += `<span class="wxflake" style="left:${(Math.random()*100).toFixed(1)}%;animation-duration:${(4+Math.random()*4).toFixed(2)}s;animation-delay:${(Math.random()*5).toFixed(2)}s;font-size:${(7+Math.random()*7).toFixed(0)}px">❄</span>`;
+  if (mode==='fog') for (let i=0;i<4;i++)
+    h += `<span class="wxfog" style="top:${12+i*20}%;animation-delay:${-i*7}s;animation-duration:${(22+i*6)}s"></span>`;
   if (mode==='cloudy' || mode==='rain' || mode==='storm') for (let i=0;i<3;i++)
     h += `<span class="wxcloud" style="top:${8+i*16}%;animation-delay:${-i*9}s"></span>`;
   wx.innerHTML = h;

@@ -50,8 +50,10 @@ export function initMelden(onSent: ()=>void) {
     const btn = $('cfSend'), hint = $('cfHint');
     const last = +(localStorage.getItem('wl3_last_report')||0);
     if (Date.now() - last < 120000) { hint.textContent = '⏳ Spam-Schutz: bitte kurz warten, du hast gerade erst gemeldet.'; return; }
-    const cat = $('cfCat').value, place = $('cfPlace').value.trim(), body = $('cfBody').value.trim(),
+    const cat = $('cfCat').value, place = $('cfPlace').value.trim().slice(0,80), body = $('cfBody').value.trim().slice(0,600),
           name = $('cfName').value.trim().slice(0,40);
+    /* Missbrauchsschutz: Link-Spam abfangen */
+    if ((body.match(/https?:\/\//g)||[]).length > 1) { hint.textContent = 'Bitte ohne Link-Listen melden — maximal ein Link pro Meldung.'; btn.disabled=false; return; }
     if (!body && !place) { hint.textContent = 'Bitte kurz beschreiben, was andere wissen sollen.'; return; }
     btn.disabled = true; btn.textContent = 'Sende …';
     /* Foto zuerst (nur eingeloggt) */

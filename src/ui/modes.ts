@@ -1,8 +1,8 @@
 /* ═══ Zielgruppen-Modi · jeder Modus = Layer-Preset + Fokus ═══ */
 export interface Mode { id:string; label:string; kinds:string[] }
 export const MODES: Mode[] = [
-  { id:'kapitaen',  label:'⚓ Kapitän',     kinds:['gelbe_welle','hafen','schleuse','tank','entsorgung','wsp','notfall'] },
-  { id:'hausboot',  label:'🛥️ Hausboot',    kinds:['gelbe_welle','hafen','schleuse','tank','entsorgung','gastro','shop'] },
+  { id:'kapitaen',  label:'⚓ Kapitän',     kinds:['gelbe_welle','hafen','anleger','schleuse','tank','entsorgung','wsp','notfall'] },
+  { id:'hausboot',  label:'🛥️ Hausboot',    kinds:['gelbe_welle','hafen','anleger','schleuse','tank','entsorgung','gastro','shop'] },
   { id:'familie',   label:'👨‍👩‍👧 Familie',     kinds:['badestelle','gastro','sight','event','medizin','hafen'] },
   { id:'sup',       label:'🛶 SUP & Kajak', kinds:['badestelle','slip','gastro','sight'] },
   { id:'angler',    label:'🎣 Angler',      kinds:['slip','shop','hafen','badestelle'] },

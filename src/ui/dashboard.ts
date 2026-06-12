@@ -37,13 +37,40 @@ function renderMeldungenRebind(el:HTMLElement, sorted:any[], row:(n:any)=>string
 }
 
 const WICON: Record<number,string> = {0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',61:'🌧️',63:'🌧️',65:'🌧️',80:'🌧️',95:'⛈️',96:'⛈️',99:'⛈️'};
+const DIR_DEG: Record<string,number> = {N:0,NNO:22.5,NO:45,ONO:67.5,O:90,OSO:112.5,SO:135,SSO:157.5,S:180,SSW:202.5,SW:225,WSW:247.5,W:270,WNW:292.5,NW:315,NNW:337.5,NNE:22.5,NE:45,ENE:67.5,E:90,ESE:112.5,SE:135,SSE:157.5};
+/* Windrose — Messing/Glas-Instrument, Nadel = Windrichtung (woher) */
+function windrose(dirStr:string, bft:number, kmh:number): string {
+  const deg = DIR_DEG[dirStr?.toUpperCase?.()] ?? 0;
+  let ticks='';
+  for (let a=0;a<360;a+=15){ const r1=44, r2=(a%90===0)?36:(a%45===0)?38:41, rad=Math.PI*a/180;
+    ticks+=`<line x1="${(50+r1*Math.sin(rad)).toFixed(1)}" y1="${(50-r1*Math.cos(rad)).toFixed(1)}" x2="${(50+r2*Math.sin(rad)).toFixed(1)}" y2="${(50-r2*Math.cos(rad)).toFixed(1)}"/>`; }
+  return `<div class="windrose-wrap" title="Windrichtung ${E(dirStr)} · ${bft} Bft">
+  <svg viewBox="0 0 100 100" class="windrose" role="img" aria-label="Windrose: Wind aus ${E(dirStr)}, ${bft} Beaufort">
+    <defs><radialGradient id="wrglass" cx="50%" cy="38%"><stop offset="0%" stop-color="rgba(180,230,240,.16)"/><stop offset="100%" stop-color="rgba(8,26,41,.55)"/></radialGradient>
+    <linearGradient id="wrbrass" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFE29A"/><stop offset="50%" stop-color="#D9B14D"/><stop offset="100%" stop-color="#C9982F"/></linearGradient></defs>
+    <circle cx="50" cy="50" r="47" fill="url(#wrglass)" stroke="url(#wrbrass)" stroke-width="1.6"/>
+    <g stroke="url(#wrbrass)" stroke-width="1" opacity=".8">${ticks}</g>
+    <text x="50" y="13" text-anchor="middle" font-size="8.5" fill="#FFE29A" font-weight="700">N</text>
+    <text x="89" y="53" text-anchor="middle" font-size="7.5" fill="rgba(255,226,154,.7)">O</text>
+    <text x="50" y="94" text-anchor="middle" font-size="7.5" fill="rgba(255,226,154,.7)">S</text>
+    <text x="11" y="53" text-anchor="middle" font-size="7.5" fill="rgba(255,226,154,.7)">W</text>
+    <g transform="rotate(${deg} 50 50)" class="wr-needle">
+      <path d="M50 16 L54 50 L50 58 L46 50 Z" fill="#3FC3C9" opacity=".95"/>
+      <path d="M50 58 L53 76 L50 82 L47 76 Z" fill="rgba(255,255,255,.35)"/>
+    </g>
+    <circle cx="50" cy="50" r="11.5" fill="rgba(8,26,41,.85)" stroke="url(#wrbrass)" stroke-width="1"/>
+    <text x="50" y="48.5" text-anchor="middle" font-size="9" font-weight="800" fill="#eafaff">${bft}</text>
+    <text x="50" y="57" text-anchor="middle" font-size="4.6" fill="rgba(234,250,255,.65)" letter-spacing=".5">BFT</text>
+  </svg>
+  <div class="wr-cap">Wind aus ${E(dirStr)} · ${kmh} km/h</div></div>`;
+}
 export function renderWetter(w: Weather|null) {
   const el = $('wetter');
   if (!w) { badge('bdgWetter',false,'nicht erreichbar'); el.innerHTML='<div class="row"><span class="ic">📡</span><div>Wetterdaten gerade nicht erreichbar.</div></div>'; return; }
   badge('bdgWetter',true,`● Live · Open-Meteo · ${w.fetched} Uhr`);
   const warn = w.bft>=5?'<div class="row sev-red"><span class="ic">💨</span><div class="t">Kräftiger Wind — kleine Boote, SUP & Kajak heute meiden.</div></div>'
     : w.bft>=4?'<div class="row sev-orange"><span class="ic">💨</span><div class="t">Frischer Wind — vorausschauend fahren.</div></div>':'';
-  el.innerHTML = `
+  el.innerHTML = windrose(w.dir, w.bft, w.kmh) + `
     <div class="kv"><span>${WICON[w.code]??'🌤️'} Wind</span><b>${w.bft} Bft aus ${w.dir} · ${w.kmh} km/h</b></div>
     <div class="kv"><span>Böen</span><b>~${w.gust} km/h</b></div>
     <div class="kv"><span>Temperatur</span><b>${w.temp} °C</b></div>

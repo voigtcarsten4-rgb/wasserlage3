@@ -1,22 +1,43 @@
 /* ═══ WASSERLAGE 3.0 DESIGNSYSTEM · wl3-design-v1 ═══ */
 :root{
-  --ocean-900:#04121f; --ocean-800:#072138; --ocean-700:#0b3354; --ocean-600:#104a78;
-  --cyan:#38d6f5; --cyan-soft:#8fe9ff; --gold:#e8b54d; --gold-deep:#c9921f;
+  /* Wave-Bite-Markenwelt: Navy / Cyan / Gold (abgeleitet aus wave-bite.com) */
+  --ocean-900:#081a29; --ocean-800:#0E2A40; --ocean-700:#152E40; --ocean-600:#16425F;
+  --cyan:#3FC3C9; --cyan-soft:#9fe9ef; --cyan-deep:#19719A;
+  --gold:#D9B14D; --gold-deep:#C9982F; --gold-soft:#FFE29A; --cream:#FBF6EC;
   --foam:#f2fbff; --ink:#0a2540; --ink2:#5a7184;
   --ok:#27c08d; --warn:#f5b73c; --danger:#ff5d5d;
   --glass:rgba(255,255,255,.78); --glass-brd:rgba(255,255,255,.55);
   --r-lg:22px; --r-md:14px; --shadow:0 18px 50px -20px rgba(4,18,31,.45);
   --font-h:'Sora',system-ui,sans-serif; --font-b:'Inter',system-ui,sans-serif;
 }
+/* ── 4 Tagesphasen (2.0-Erbe, Phase D) ── */
+html[data-tod="dawn"]{
+  --glass:rgba(20,28,46,.66); --glass-brd:rgba(255,190,140,.22);
+  --foam:#101a2c; --ink:#f4ecec; --ink2:#c0aca4;
+  --sky-a:rgba(255,150,90,.30); --sky-b:rgba(217,177,77,.26);
+  --bg-grad:linear-gradient(180deg,#131b30 0%,#33304e 36%,#7a4a4e 72%,#c97b4f 100%);
+}
+html[data-tod="day"]{
+  --sky-a:rgba(63,195,201,.28); --sky-b:rgba(217,177,77,.18);
+  --bg-grad:linear-gradient(180deg,var(--ocean-900) 0%,var(--ocean-800) 30%,#10405f 70%,#19719A 100%);
+}
+html[data-tod="dusk"]{
+  --glass:rgba(24,20,40,.68); --glass-brd:rgba(255,170,120,.2);
+  --foam:#140f22; --ink:#f6eee8; --ink2:#bfa8a0;
+  --sky-a:rgba(255,120,70,.32); --sky-b:rgba(150,80,160,.24);
+  --bg-grad:linear-gradient(180deg,#0e1026 0%,#2a1c44 34%,#6e2f52 68%,#c45a3c 100%);
+}
 html[data-tod="night"]{
   --glass:rgba(10,30,50,.72); --glass-brd:rgba(140,200,255,.18);
   --foam:#0a1a2a; --ink:#e8f4fc; --ink2:#9db8cc;
+  --sky-a:rgba(63,195,201,.14); --sky-b:rgba(120,140,255,.10);
+  --bg-grad:linear-gradient(180deg,#040d18 0%,#081a29 35%,#0E2A40 75%,#123246 100%);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{font-family:var(--font-b);color:var(--ink);background:
-  linear-gradient(180deg,var(--ocean-900) 0%,var(--ocean-800) 30%,#0e3a5e 70%,#10547e 100%) fixed;
-  min-height:100vh}
+body{font-family:var(--font-b);color:var(--ink);background:var(--bg-grad,
+  linear-gradient(180deg,var(--ocean-900) 0%,var(--ocean-800) 30%,#10405f 70%,#19719A 100%)) fixed;
+  min-height:100vh;transition:background 1.2s ease}
 #water3d{position:fixed;inset:0;z-index:0;pointer-events:none}
 #water3d canvas{width:100%!important;height:100%!important;display:block}
 #app{position:relative;z-index:1}
@@ -27,9 +48,9 @@ a{color:var(--cyan)}
 /* ═══ HERO ═══ */
 .hero{position:relative;overflow:hidden;padding:clamp(28px,6vw,72px) 20px clamp(70px,9vw,110px);text-align:center;color:#eafaff}
 .hero-sky{position:absolute;inset:0;background:
-  radial-gradient(1100px 480px at 78% -10%,rgba(56,214,245,.28),transparent 60%),
-  radial-gradient(700px 380px at 12% 10%,rgba(232,181,77,.18),transparent 65%);
-  animation:skyDrift 18s ease-in-out infinite alternate}
+  radial-gradient(1100px 480px at 78% -10%,var(--sky-a,rgba(63,195,201,.28)),transparent 60%),
+  radial-gradient(700px 380px at 12% 10%,var(--sky-b,rgba(217,177,77,.18)),transparent 65%);
+  animation:skyDrift 18s ease-in-out infinite alternate;transition:background 1.2s ease}
 @keyframes skyDrift{to{transform:translateX(-2.5%) scale(1.04)}}
 .hero-waves{position:absolute;left:0;right:0;bottom:-2px;height:clamp(60px,9vw,110px);pointer-events:none}
 .wv{position:absolute;inset:0;width:200%;height:100%}
@@ -284,3 +305,40 @@ html[data-tod="night"] .comm-form input,html[data-tod="night"] .comm-form select
 .ev-main b{font-size:.92rem}
 .ev-main span{font-size:.78rem;opacity:.7}
 .ev-date{font-size:.82rem;font-weight:600;white-space:nowrap;opacity:.9}
+
+/* ═══ Karten-UX Phase D: Suche, Land-Filter, Layergruppen, Cluster ═══ */
+.map-top{position:absolute;top:12px;left:54px;right:12px;z-index:5;display:flex;gap:10px;align-items:flex-start;padding:8px;border-radius:14px;max-width:680px}
+.map-search{position:relative;flex:1;min-width:0}
+.map-search input{width:100%;box-sizing:border-box;background:rgba(8,24,40,.55);border:1px solid rgba(255,255,255,.18);color:inherit;border-radius:10px;padding:9px 12px;font-size:.9rem}
+.map-search-res{position:absolute;top:calc(100% + 6px);left:0;right:0;background:rgba(8,24,40,.96);border:1px solid rgba(123,216,232,.3);border-radius:12px;overflow:hidden;backdrop-filter:blur(12px);box-shadow:0 16px 40px rgba(0,0,0,.45)}
+.map-search-res button{display:flex;flex-direction:column;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid rgba(255,255,255,.07);color:inherit;padding:9px 12px;cursor:pointer;gap:1px}
+.map-search-res button:hover{background:rgba(123,216,232,.12)}
+.map-search-res button b{font-size:.88rem}
+.map-search-res button span{font-size:.74rem;opacity:.65}
+#mapLand{background:rgba(8,24,40,.55);border:1px solid rgba(255,255,255,.18);color:inherit;border-radius:10px;padding:9px 10px;font-size:.85rem;max-width:240px}
+.lg-group{margin-bottom:4px}
+.lg-group summary{cursor:pointer;font-size:.8rem;font-weight:700;opacity:.92;padding:5px 6px;border-radius:8px;list-style:none;display:flex;align-items:center;gap:6px;user-select:none}
+.lg-group summary::-webkit-details-marker{display:none}
+.lg-group summary:hover{background:rgba(255,255,255,.06)}
+.lg-cnt{margin-left:auto;font-weight:400;font-size:.7rem;opacity:.55;background:rgba(255,255,255,.08);border-radius:99px;padding:1px 7px}
+.lg-pills{display:flex;flex-wrap:wrap;gap:5px;padding:4px 4px 8px}
+@media(max-width:560px){
+  .map-top{left:12px;flex-direction:column}
+  #mapLand{max-width:none;width:100%}
+  .map-legend{max-height:34vh;overflow:auto}
+}
+
+/* ═══ Windrose-Instrument (Phase D) ═══ */
+.windrose-wrap{display:flex;flex-direction:column;align-items:center;margin:2px auto 12px;max-width:170px}
+.windrose{width:150px;height:150px;filter:drop-shadow(0 6px 18px rgba(0,0,0,.35))}
+.wr-needle{transition:transform 1.4s cubic-bezier(.2,.8,.2,1)}
+.wr-cap{font-size:.74rem;opacity:.7;margin-top:4px}
+
+/* ═══ Schnee & Nebel (2.0-Erbe, Phase D) ═══ */
+.wxflake{position:absolute;top:-4%;color:rgba(255,255,255,.85);animation:flakeFall linear infinite;pointer-events:none;text-shadow:0 0 6px rgba(255,255,255,.4)}
+@keyframes flakeFall{from{transform:translateY(-4vh) translateX(0) rotate(0)}50%{transform:translateY(46vh) translateX(18px) rotate(180deg)}to{transform:translateY(96vh) translateX(-10px) rotate(360deg);opacity:.2}}
+.wxfog{position:absolute;left:-30%;width:75%;height:60px;border-radius:50%;background:radial-gradient(ellipse,rgba(220,235,245,.16),transparent 70%);filter:blur(14px);animation:fogDrift linear infinite}
+@keyframes fogDrift{from{transform:translateX(0)}to{transform:translateX(190%)}}
+.comm-badge.stale{background:rgba(160,160,160,.14);color:#c9c9c9;border-color:rgba(200,200,200,.25)}
+.pp-q.unverified{background:rgba(160,160,160,.15);color:#b9c5ce;border:1px solid rgba(185,197,206,.3)}
+#expNear.on{background:rgba(63,195,201,.18);border-color:rgba(63,195,201,.5)}

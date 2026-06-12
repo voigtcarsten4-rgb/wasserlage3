@@ -14,6 +14,27 @@ export function initExplorer(features: any[], flyTo: (lng:number,lat:number)=>vo
   const grid = document.getElementById('expGrid')!;
   const more = document.getElementById('expMore')!;
   let shown = PAGE;
+  let nearPos: {lat:number;lon:number}|null = null;
+
+  /* „In meiner Nähe" — sortiert nach Distanz (Haversine, 2.0-Erbe) */
+  const hav = (a:{lat:number;lon:number}, lat:number, lon:number) => {
+    const R=6371, dLa=(lat-a.lat)*Math.PI/180, dLo=(lon-a.lon)*Math.PI/180;
+    const x=Math.sin(dLa/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(lat*Math.PI/180)*Math.sin(dLo/2)**2;
+    return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+  };
+  const nearBtn = document.createElement('button');
+  nearBtn.className = 'exp-act'; nearBtn.id = 'expNear'; nearBtn.type = 'button';
+  nearBtn.textContent = '📍 In meiner Nähe';
+  document.querySelector('.exp-bar')?.appendChild(nearBtn);
+  nearBtn.addEventListener('click', () => {
+    if (nearPos) { nearPos = null; nearBtn.textContent = '📍 In meiner Nähe'; nearBtn.classList.remove('on'); render(); return; }
+    if (!navigator.geolocation) { nearBtn.textContent = '📍 kein GPS'; return; }
+    nearBtn.textContent = '📍 suche …';
+    navigator.geolocation.getCurrentPosition(p => {
+      nearPos = { lat:p.coords.latitude, lon:p.coords.longitude };
+      nearBtn.textContent = '✓ Nähe aktiv'; nearBtn.classList.add('on'); shown = PAGE; render();
+    }, () => { nearBtn.textContent = '📍 In meiner Nähe'; });
+  });
 
   KINDS.forEach(k => { const o=document.createElement('option'); o.value=k.kind; o.textContent=`${k.icon} ${k.label}`; kindSel.appendChild(o); });
   const regs = [...new Set(features.map(f=>f.properties.region).filter(Boolean))];
@@ -39,7 +60,9 @@ export function initExplorer(features: any[], flyTo: (lng:number,lat:number)=>vo
       p.web ? `<a class="exp-act" href="https://${E(p.web)}" target="_blank" rel="noopener">🌐</a>` : '',
       `<a class="exp-act" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" rel="noopener">🧭</a>`,
     ].filter(Boolean).join('');
-    const quality = p.quality==='verified' ? '<span class="pp-q verified">✓ verifiziert</span>' : '<span class="pp-q curated">kuratiert</span>';
+    const quality = p.quality==='verified' ? '<span class="pp-q verified">✓ verifiziert</span>'
+      : p.quality==='curated' ? '<span class="pp-q curated">kuratiert</span>'
+      : '<span class="pp-q unverified">ungeprüft</span>';
     return `<article class="exp-card glass" style="--kc:${k?.color||'#888'}">
       <div class="exp-kind">${k?.icon||'📍'} ${E(k?.label||p.kind)} ${quality}</div>
       <h3>${E(p.name)}</h3>
@@ -51,7 +74,10 @@ export function initExplorer(features: any[], flyTo: (lng:number,lat:number)=>vo
     </article>`;
   }
   function render() {
-    const hits = features.filter(match);
+    let hits = features.filter(match);
+    if (nearPos) hits = [...hits].sort((a,b)=>
+      hav(nearPos!, a.geometry.coordinates[1], a.geometry.coordinates[0]) -
+      hav(nearPos!, b.geometry.coordinates[1], b.geometry.coordinates[0]));
     grid.innerHTML = hits.slice(0, shown).map(card).join('')
       || '<p class="exp-empty">Keine Treffer — Suche anpassen oder anderes Revier wählen.</p>';
     (more as HTMLElement).hidden = hits.length <= shown;

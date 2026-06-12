@@ -2,7 +2,7 @@
 import './styles/app.css';
 import { fetchNotices, fetchFT, fetchPegel, fetchWeather, activeToday } from './lib/live';
 import { combine } from './lib/ampel';
-import { initMap, addNoticeMarkers, KINDS, type MapAPI } from './map/map';
+import { initMap, addNoticeMarkers, KINDS, GROUPS, LAENDER, type MapAPI } from './map/map';
 import { renderModes, MODES } from './ui/modes';
 import { renderMeldungen, renderWetter, renderPegel } from './ui/dashboard';
 import { initExplorer } from './ui/explorer';
@@ -11,12 +11,17 @@ import { renderSky, startSkyTicker } from './ui/sky';
 import { initMelden } from './ui/melden';
 import { initTouren } from './ui/touren';
 
+/* 4 Tagesphasen: dawn (±45 min um Sonnenaufgang) · day · dusk (±45 min um Untergang) · night */
 function applyTod(sunrise?: string, sunset?: string) {
   const now = new Date(); const mins = now.getHours()*60 + now.getMinutes();
   const toM = (s?:string) => s ? +s.slice(0,2)*60 + +s.slice(3,5) : null;
   const sr = toM(sunrise) ?? 5*60, su = toM(sunset) ?? 21*60+30;
-  document.documentElement.dataset.tod = (mins >= sr-30 && mins <= su+30) ? 'day' : 'night';
+  const tod = (mins >= sr-45 && mins <= sr+45) ? 'dawn'
+    : (mins >= su-45 && mins <= su+45) ? 'dusk'
+    : (mins > sr+45 && mins < su-45) ? 'day' : 'night';
+  document.documentElement.dataset.tod = tod;
 }
+setInterval(()=>{ const w=(window as any).__wlw; applyTod(w?.sunrise, w?.sunset); }, 120000);
 function setAmpel(state: { cls:string; text:string; detail:string }) {
   document.getElementById('ampel')!.innerHTML = `<span class="dot ${state.cls}"></span> ${state.text}`;
   document.getElementById('ampelSrc')!.textContent = state.detail + ' · Quellen: ELWIS · Pegelonline · Open-Meteo';
@@ -40,14 +45,65 @@ function setChips(w: any, doc: any, ft: any) {
 }
 function renderLegend(api: MapAPI) {
   const el = document.getElementById('legend')!; el.innerHTML = '';
-  KINDS.forEach(k => {
-    const b = document.createElement('button');
-    b.className = 'lg' + (api.activeKinds.has(k.kind) ? '' : ' off');
-    b.innerHTML = `<span style="color:${k.color}">●</span> ${k.icon} ${k.label}`;
-    b.onclick = () => { if (api.activeKinds.has(k.kind)) api.activeKinds.delete(k.kind); else api.activeKinds.add(k.kind);
-      api.setKinds(api.activeKinds); b.classList.toggle('off'); };
-    el.appendChild(b);
+  for (const [gid, g] of Object.entries(GROUPS)) {
+    const kinds = KINDS.filter(k => k.group === gid);
+    const det = document.createElement('details');
+    det.className = 'lg-group';
+    det.open = kinds.some(k => api.activeKinds.has(k.kind));
+    const sum = document.createElement('summary');
+    const cnt = () => kinds.filter(k=>api.activeKinds.has(k.kind)).length;
+    const setSum = () => { sum.innerHTML = `${g.icon} ${g.label} <span class="lg-cnt">${cnt()}/${kinds.length}</span>`; };
+    setSum();
+    det.appendChild(sum);
+    const wrap = document.createElement('div'); wrap.className = 'lg-pills';
+    kinds.forEach(k => {
+      const b = document.createElement('button');
+      b.className = 'lg' + (api.activeKinds.has(k.kind) ? '' : ' off');
+      b.innerHTML = `<span style="color:${k.color}">●</span> ${k.icon} ${k.label}`;
+      b.onclick = () => { if (api.activeKinds.has(k.kind)) api.activeKinds.delete(k.kind); else api.activeKinds.add(k.kind);
+        api.setKinds(api.activeKinds); b.classList.toggle('off'); setSum(); };
+      wrap.appendChild(b);
+    });
+    det.appendChild(wrap);
+    el.appendChild(det);
+  }
+}
+function initMapControls(api: MapAPI) {
+  /* Bundesland-Auswahl */
+  const sel = document.getElementById('mapLand') as HTMLSelectElement | null;
+  if (sel) {
+    for (const [code, L] of Object.entries(LAENDER)) {
+      const o = document.createElement('option'); o.value = code; o.textContent = L.name; sel.appendChild(o);
+    }
+    sel.addEventListener('change', () => { if (sel.value) api.flyToLand(sel.value); });
+  }
+  /* Suche: erst lokale POIs, Enter ohne Treffer → Nominatim-Ortssuche */
+  const q = document.getElementById('mapQ') as HTMLInputElement | null;
+  const res = document.getElementById('mapQRes') as HTMLDivElement | null;
+  if (!q || !res) return;
+  const E=(s:string)=>{const d=document.createElement('div');d.textContent=s??'';return d.innerHTML;};
+  const show = (items:{name:string;sub:string;lng:number;lat:number}[]) => {
+    res.hidden = items.length===0;
+    res.innerHTML = items.map((it,i)=>`<button data-i="${i}"><b>${E(it.name)}</b><span>${E(it.sub)}</span></button>`).join('');
+    res.querySelectorAll('button').forEach((b)=>b.addEventListener('click',()=>{
+      const it = items[+b.dataset.i!];
+      api.map.flyTo({ center:[it.lng,it.lat], zoom:13.5, speed:1.5 });
+      res.hidden = true; q.value = '';
+    }));
+  };
+  let t=0 as any;
+  q.addEventListener('input', () => { clearTimeout(t); t = setTimeout(()=>show(api.search(q.value)), 160); });
+  q.addEventListener('keydown', async (ev) => {
+    if (ev.key !== 'Enter') return;
+    const local = api.search(q.value);
+    if (local.length) { show(local); return; }
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q.value)}&countrycodes=de&format=json&limit=5`,
+        { headers:{ 'Accept':'application/json' } }).then(r=>r.json());
+      show(r.map((x:any)=>({ name:'📍 '+x.display_name.split(',')[0], sub:x.display_name.split(',').slice(1,3).join(','), lng:+x.lon, lat:+x.lat })));
+    } catch { /* still */ }
   });
+  document.addEventListener('click', (ev) => { if (!res.contains(ev.target as Node) && ev.target!==q) res.hidden = true; });
 }
 function initSafety() {
   const btn = document.getElementById('sharePos');
@@ -71,6 +127,7 @@ async function boot() {
   renderSky(null);
   const mapP = initMap('map').catch(e => { console.error('Karte konnte nicht geladen werden', e); return null; });
   const [w, doc, ft] = await Promise.all([fetchWeather(), fetchNotices(), fetchFT()]);
+  (window as any).__wlw = w;
   if (w) applyTod(w.sunrise, w.sunset);
   renderSky(w); startSkyTicker(()=>w);
   const state = combine(w, doc?.notices ?? null);
@@ -84,7 +141,7 @@ async function boot() {
   const api = await mapP;
   if (api) {
     renderModes(document.getElementById('modes')!, (m)=>{ api.setKinds(new Set(m.kinds)); renderLegend(api); });
-    api.setKinds(new Set(MODES[0].kinds)); renderLegend(api);
+    api.setKinds(new Set(MODES[0].kinds)); renderLegend(api); initMapControls(api);
     if (doc) { try { addNoticeMarkers(api, doc.notices.filter(activeToday).filter(n=>n.type!=='yellow')); } catch(e) { console.error(e); } }
     /* Explorer aus derselben Quelle wie die Karte */
     fetch(`${import.meta.env.BASE_URL}data/pois.geojson`).then(r=>r.json()).then(fc => {

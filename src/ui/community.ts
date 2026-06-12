@@ -10,7 +10,11 @@ function rel(ts:string): string {
 }
 const confirmed = (): string[] => { try { return JSON.parse(localStorage.getItem('wl3_confirmed')||'[]'); } catch { return []; } };
 
+/* Statuslogik: ungeprüft → Community-bestätigt → veraltet (Zeit-Decay wie 2.0 itemTTL) · hidden = nie geladen */
 function badge(p:any): string {
+  const ageH = (Date.now()-Date.parse(p.created_at))/36e5;
+  const ttl = p.category==='gefahr' ? 7*24 : p.category==='liegeplatz' ? 24 : 30*24;
+  if (ageH > ttl) return '<span class="comm-badge stale">⏳ möglicherweise veraltet</span>';
   if (p.status === 'confirmed' || (p.confirms||0) >= 3) return '<span class="comm-badge ok">🟢 von Community bestätigt</span>';
   return '<span class="comm-badge">🟡 ungeprüft</span>';
 }
