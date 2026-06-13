@@ -963,3 +963,14 @@ html.is-offline .badge:not(.err){opacity:.5}
 /* Typografie tighter (Emil) */
 .rt-sum-head, .rt-sum-big b, .sect-h{ letter-spacing:-0.02em }
 .rt-lilly-txt{ letter-spacing:-0.01em }
+
+/* ═══ Phase 1 · Community-Meldungen auf der Route + Copilot ═══ */
+.rt-comm{margin:.55rem 0;padding:.6rem .7rem;border-radius:14px;background:rgba(63,195,201,.08);border:1px solid rgba(63,195,201,.22)}
+.rt-comm>b{display:block;margin-bottom:.35rem;font-size:.92rem}
+.rt-comm ul{margin:.15rem 0 0;padding-left:1.15rem;display:flex;flex-direction:column;gap:.3rem}
+.rt-comm li{font-size:.86rem;line-height:1.35}
+.rt-comm-meta{display:block;font-size:.73rem;opacity:.72;margin-top:.05rem}
+.rt-comm-stale{color:#c98a2b;font-weight:600}
+.rt-comm-src{margin-top:.45rem;font-size:.72rem;opacity:.6}
+.rt-lock-hrs{opacity:.75;font-weight:400}
+.nav-next-list .nx-r.p1 .nx-i{filter:drop-shadow(0 0 4px rgba(255,120,90,.5))}

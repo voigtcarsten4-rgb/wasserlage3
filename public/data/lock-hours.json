@@ -1,0 +1,8 @@
+{
+  "_meta": {
+    "about": "Schleusen-Betriebszeiten. Gepflegt aus amtlichen Quellen (WSV/ELWIS). Leer = keine Daten -> die App zeigt ehrlich 'Betriebszeiten nicht hinterlegt'. Es werden NIEMALS Zeiten erfunden.",
+    "schema": { "<Schleusenname>": { "season": "z.B. Apr-Okt", "times": "z.B. 06:00-20:00", "self_service": false, "note": "", "source": "" } },
+    "updated": ""
+  },
+  "hours": {}
+}

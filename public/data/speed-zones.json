@@ -1,0 +1,8 @@
+{
+  "_meta": {
+    "about": "Erlaubte Geschwindigkeit je Wasserstrasse/Abschnitt. Gepflegt aus amtlichen Befahrensregeln. Leer = keine Anzeige. Es werden NIEMALS Limits erfunden.",
+    "schema": { "match": "Teilstring der Wasserstrasse (z.B. 'landwehrkanal')", "kmh": 12, "note": "" },
+    "updated": ""
+  },
+  "zones": []
+}

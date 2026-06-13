@@ -5,6 +5,8 @@ import maplibregl from 'maplibre-gl';
 import type { MapAPI } from '../map/map';
 import { route, loadGraph, graphMeta, type LngLat, type RouteResult } from '../lib/routing';
 import { activeToday, type Notice } from '../lib/live';
+import { fetchGeoReports, getCachedReports, relAge, type GeoReport } from '../lib/reports';
+import { loadLockHours, lockHoursFor, loadSpeedZones, speedForWaterways } from '../lib/datamodel';
 
 let API: MapAPI | null = null;
 let getNotices: (() => { notices: Notice[] } | null) | null = null;
@@ -13,6 +15,9 @@ let mA: maplibregl.Marker | null = null, mB: maplibregl.Marker | null = null;
 let pick: 'A' | 'B' | null = null;
 let busy = false;
 let lastRoute: RouteResult | null = null;
+let geoReports: GeoReport[] = getCachedReports();   // georeferenzierte Community-Meldungen (Phase 1)
+let deviated = false;                               // Live-GPS: aktuell von der Route abgewichen?
+const DEVIATE_ON = 110, DEVIATE_OFF = 55;           // Hysterese (m) für den Abweichungs-Hinweis
 
 const E = (s: any) => { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; };
 const fmtKm = (k: number) => k < 10 ? k.toFixed(1).replace('.', ',') + ' km' : Math.round(k) + ' km';
@@ -150,7 +155,7 @@ let boat: maplibregl.Marker | null = null;
 let speakOn = false; let lastHintKey = ''; let navSavedCam: any = null;
 /* Vorberechnete Ereignisse entlang der Route (Schleusen + Korridor-POIs), nach Strecke sortiert.
  * prio 1=Sicherheit/Pflicht · 2=Nutzen/Versorgung · 3=Erlebnis. side: -1 backbord · 0 voraus · +1 steuerbord. */
-interface NavEvt { s: number; prio: 1 | 2 | 3; icon: string; label: string; name: string; side: number; perp: number; kind: string; key: string }
+interface NavEvt { s: number; prio: 1 | 2 | 3; icon: string; label: string; name: string; side: number; perp: number; kind: string; key: string; meta?: { ageH?: number; confirmed?: boolean; body?: string } }
 let navEvents: NavEvt[] = [];
 const navEvtSaid = new Set<string>();
 let navHoldUntil = 0;            // hält Start-Hinweise (ELWIS/Sonnenuntergang) kurz, bevor Bewegungshinweise übernehmen
@@ -177,6 +182,12 @@ function navNearestS(pos: LngLat): number {
   let best = Infinity, bi = 0;
   for (let i = 0; i < navCoords.length; i++) { const d = haversineM(pos, navCoords[i]); if (d < best) { best = d; bi = i; } }
   return navCum[bi] || 0;
+}
+/* Nächster Routenpunkt MIT Querabstand — Grundlage der Abweichungs-Erkennung im Live-Modus. */
+function navNearest(pos: LngLat): { s: number; distM: number } {
+  let best = Infinity, bi = 0;
+  for (let i = 0; i < navCoords.length; i++) { const d = haversineM(pos, navCoords[i]); if (d < best) { best = d; bi = i; } }
+  return { s: navCum[bi] || 0, distM: best };
 }
 function ensureBoat(): maplibregl.Marker {
   if (boat) return boat;
@@ -234,6 +245,8 @@ const POI_META: Record<string, { icon: string; label: string; prio: 1 | 2 | 3 }>
   entsorgung: { icon: '♻️', label: 'Entsorgung', prio: 2 }, werkstatt: { icon: '🛠️', label: 'Werkstatt', prio: 2 }, slip: { icon: '🛞', label: 'Slip', prio: 2 },
   shop: { icon: '🛒', label: 'Proviant', prio: 2 }, gastro: { icon: '🍽️', label: 'Restaurant', prio: 2 }, badestelle: { icon: '🏖️', label: 'Badestelle', prio: 2 },
   sight: { icon: '🏰', label: 'Sehenswürdigkeit', prio: 3 }, event: { icon: '🎉', label: 'Event', prio: 3 }, charter: { icon: '⛵', label: 'Charter', prio: 3 },
+  /* Vorbereitete Erlebnis-Kategorien (Phase 1) — Copilot erkennt sie, sobald POIs mit diesen kinds existieren. */
+  angelspot: { icon: '🎣', label: 'Angelspot', prio: 3 }, sunset: { icon: '🌅', label: 'Sonnenuntergang', prio: 3 }, cafe: { icon: '☕', label: 'Café am Wasser', prio: 2 }, hundestrand: { icon: '🐕', label: 'Hundestrand', prio: 3 },
 };
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const sideWord = (e: NavEvt) => e.side === 0 ? 'voraus' : (e.side < 0 ? 'links voraus' : 'rechts voraus');
@@ -263,13 +276,43 @@ function buildNavEvents() {
       navEvents.push({ s, prio: (k === 'tank' && longRoute) ? 1 : meta.prio, icon: meta.icon, label: meta.label, name, side: best < 60 ? 0 : (rel >= 0 ? 1 : -1), perp: Math.round(best), kind: k, key });
     }
   }
+  /* Community-Meldungen mit Koordinaten als georeferenzierte Ereignisse — veraltete (stale) übersprungen. */
+  if (navCoords.length >= 2) {
+    for (const rep of geoReports) {
+      if (rep.stale) continue;
+      if (rep.category === 'erlebnis' && navTotM > 30000) continue;   // auf langen Touren zurückhaltend
+      const ll: LngLat = [rep.lon, rep.lat];
+      let best = Infinity, bi = 0;
+      for (let i = 0; i < navCoords.length; i++) { const d = haversineM(ll, navCoords[i]); if (d < best) { best = d; bi = i; } }
+      if (best > 700) continue;
+      const s = navCum[bi];
+      const aHead = bearingOf(navCoords[Math.max(0, bi - 1)], navCoords[Math.min(navCoords.length - 1, bi + 1)]);
+      const rel = ((bearingOf(navCoords[bi], ll) - aHead + 540) % 360) - 180;
+      const cm = COMMUNITY_META[rep.category]; if (!cm) continue;
+      navEvents.push({ s, prio: cm.prio, icon: cm.icon, label: cm.label, name: rep.place || rep.title || cm.label,
+        side: best < 60 ? 0 : (rel >= 0 ? 1 : -1), perp: Math.round(best), kind: cm.kind, key: 'comm:' + rep.id,
+        meta: { ageH: rep.ageH, confirmed: rep.confirmed, body: rep.body } });
+    }
+  }
   navEvents.sort((a, b) => a.s - b.s);
 }
+/* Community-Kategorie → Copilot-Ereignis (1=Gefahr/Pflicht · 2=Nutzen · 3=Erlebnis) */
+const COMMUNITY_META: Record<string, { kind: string; icon: string; label: string; prio: 1 | 2 | 3 }> = {
+  gefahr:     { kind: 'community_danger', icon: '⚠️', label: 'Community-Gefahr',  prio: 1 },
+  hinweis:    { kind: 'community_hint',   icon: 'ℹ️', label: 'Community-Hinweis', prio: 2 },
+  liegeplatz: { kind: 'community_berth',  icon: '🅿️', label: 'Liegeplatz-Tipp',  prio: 2 },
+  erlebnis:   { kind: 'community_spot',   icon: '⭐', label: 'Schöner Ort',       prio: 3 },
+};
 /* menschliche, ruhige Lilly-Formulierung je Ereignis */
 function phrase(e: NavEvt, dM: number): { html: string; say: string } {
   const dk = fmtKm(dM / 1000); const side = sideWord(e);
   const close = dM < 180;
+  const m = e.meta; const ageTxt = m && m.ageH != null ? relAge(m.ageH) + (m.confirmed ? ', bestätigt' : '') : 'frische Meldung';
   switch (e.kind) {
+    case 'community_danger': return { html: `⚠️ ${cap(side)} meldet die Community eine <b>Gefahr</b>${e.name ? ` · ${E(e.name)}` : ''} (${ageTxt}). Bitte vorsichtig fahren.`, say: `Achtung: Community meldet eine Gefahr ${side}, ${ageTxt}.` };
+    case 'community_hint': return { html: `ℹ️ ${cap(side)}: <b>Community-Hinweis</b>${e.name ? ` · ${E(e.name)}` : ''} (${ageTxt}).`, say: `Community-Hinweis ${side}.` };
+    case 'community_berth': return { html: `🅿️ ${cap(side)} meldet die Community einen <b>freien Liegeplatz</b>${e.name ? ` · ${E(e.name)}` : ''} (${ageTxt}).`, say: `Liegeplatz-Tipp ${side}.` };
+    case 'community_spot': return { html: `⭐ ${cap(side)} liegt ein <b>Community-Tipp</b>${e.name ? `: ${E(e.name)}` : ''}.`, say: `${side}: schöner Ort, Community-Tipp.` };
     case 'lock': return close
       ? { html: `🚪 <b>Schleuse ${E(e.name)}</b> — bitte Schleusung & Signal beachten.`, say: `Schleuse ${e.name}. Bitte Schleusung beachten.` }
       : { html: `🚪 In etwa <b>${dk}</b> kommt die <b>Schleuse ${E(e.name)}</b>. Plane etwas Zeit ein.`, say: `In ${dk} kommt die Schleuse ${e.name}. Plane etwas Zeit ein.` };
@@ -337,7 +380,12 @@ function showStartupNotices(notices: { html: string; say: string }[]) {
     speak(n.say);
   }, i * 3200));
 }
-function navUpdate(pos: LngLat, brg: number, s: number, realSpeedKmh: number | null) {
+function setHint(h: { html: string; say: string }) {
+  const el = document.getElementById('nvHint'); if (el) el.innerHTML = h.html;
+  const lil = document.getElementById('nvLilly'); if (lil) { lil.classList.remove('pulse'); void (lil as HTMLElement).offsetWidth; lil.classList.add('pulse'); }
+  speak(h.say);
+}
+function navUpdate(pos: LngLat, brg: number, s: number, realSpeedKmh: number | null, opts?: { offRouteM?: number; accuracyM?: number }) {
   if (!lastRoute) return;
   const restKm = Math.max(0, navTotM - s) / 1000;
   const remLocks = (lastRoute.lockPts || []).filter(l => l.km * 1000 > s + 80).length;
@@ -345,18 +393,25 @@ function navUpdate(pos: LngLat, brg: number, s: number, realSpeedKmh: number | n
   const etaMin = restKm / cruise * 60 + remLocks * 20;
   const arr = new Date(Date.now() + etaMin * 60000);
   const set = (id: string, v: string) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  const acc = opts?.accuracyM ?? null;
+  const weak = acc != null && acc > 50;
+  const veryWeak = acc != null && acc > 150;          // Position unzuverlässig → keine Abweichung behaupten
   set('nvSpeed', realSpeedKmh != null ? (realSpeedKmh >= 1 ? Math.round(realSpeedKmh) + ' km/h' : '0 km/h') : '~9 km/h');
-  set('nvHead', Math.round((brg + 360) % 360) + '°');
+  set('nvHead', weak ? `±${Math.round(acc!)} m` : Math.round((brg + 360) % 360) + '°');
   set('nvRest', fmtKm(restKm));
   set('nvEta', arr.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }));
-  if (performance.now() >= navHoldUntil) {
+  /* Abweichungs-/Schwachsignal-Override (nur Live-GPS liefert opts) — Hysterese gegen Flackern. */
+  const offM = opts?.offRouteM ?? null;
+  let override: { key: string; html: string; say: string } | null = null;
+  if (offM != null && !veryWeak) {
+    if (offM > DEVIATE_ON) deviated = true; else if (offM < DEVIATE_OFF) deviated = false;
+    if (deviated) override = { key: 'deviate', html: `↩️ <b>Du bist von der Route abgewichen</b> (~${Math.round(offM)} m). Zurück zur blauen Linie — oder neu planen.`, say: 'Du bist von der Route abgewichen.' };
+  } else if (veryWeak) deviated = false;
+  if (!override && veryWeak) override = { key: 'weakgps', html: `📡 <b>GPS-Signal schwach</b> (±${Math.round(acc!)} m) — Position ungenau, Hinweise mit Vorsicht.`, say: '' };
+  if (override) { if (override.key !== lastHintKey) { lastHintKey = override.key; setHint(override); } }
+  else if (performance.now() >= navHoldUntil) {
     const h = navHint(s);
-    if (h.key !== lastHintKey) {
-      lastHintKey = h.key;
-      const el = document.getElementById('nvHint'); if (el) el.innerHTML = h.html;
-      const lil = document.getElementById('nvLilly'); if (lil) { lil.classList.remove('pulse'); void (lil as HTMLElement).offsetWidth; lil.classList.add('pulse'); }
-      speak(h.say);
-    }
+    if (h.key !== lastHintKey) { lastHintKey = h.key; setHint(h); }
   }
   renderNext(s);
   ensureBoat().setLngLat(pos).setRotation((brg + 360) % 360);
@@ -381,11 +436,13 @@ function startLiveWatch() {
   navWatch = navigator.geolocation.watchPosition(p => {
     if (!navOn) return;
     const pos: LngLat = [p.coords.longitude, p.coords.latitude];
+    const near = navNearest(pos);
     let brg = p.coords.heading as number | null;
-    if (brg == null || isNaN(brg)) brg = lastPos ? bearingOf(lastPos, pos) : navPosAt(navNearestS(pos)).brg;
+    if (brg == null || isNaN(brg)) brg = lastPos ? bearingOf(lastPos, pos) : navPosAt(near.s).brg;
     lastPos = pos;
     const spdKmh = p.coords.speed != null && !isNaN(p.coords.speed) ? p.coords.speed * 3.6 : null;
-    navUpdate(pos, brg, navNearestS(pos), spdKmh);
+    const acc = p.coords.accuracy != null && !isNaN(p.coords.accuracy) ? p.coords.accuracy : undefined;
+    navUpdate(pos, brg, near.s, spdKmh, { offRouteM: near.distM, accuracyM: acc });
   }, () => { flashHint('GPS-Signal fehlt gerade — Vorschau („Tour abspielen") nutzen?'); }, { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 });
 }
 function finishNav() {
@@ -397,7 +454,7 @@ function startNav(source: NavSource) {
   if (!API || !lastRoute || lastRoute.coords.length < 2) { flashHint('Erst Start & Ziel setzen — dann „Tour abspielen".'); return; }
   stopNav();
   navOn = true;
-  navParam(lastRoute.coords); navSeg = 1; navS = 0; lastHintKey = ''; navPrevTs = 0; navCamTs = 0;
+  navParam(lastRoute.coords); navSeg = 1; navS = 0; lastHintKey = ''; navPrevTs = 0; navCamTs = 0; deviated = false;
   buildNavEvents();
   navSavedCam = { pitch: API.map.getPitch(), bearing: API.map.getBearing() };
   navUI(true);
@@ -407,6 +464,8 @@ function startNav(source: NavSource) {
   const notices: { html: string; say: string }[] = [];
   const ew = elwisOnRoute(lastRoute);
   if (ew.count > 0) notices.push({ html: `⚠️ <b>${ew.count} ELWIS-Hinweis${ew.count > 1 ? 'e' : ''}</b> auf der Route — aufmerksam fahren.`, say: `Achtung: ${ew.count} ELWIS Hinweis auf der Route.` });
+  const cw = communityOnRoute(lastRoute);
+  if (cw.danger > 0) notices.push({ html: `⚠️ <b>${cw.danger} Community-Gefahr${cw.danger > 1 ? 'en' : ''}</b> auf der Route — bitte aufmerksam fahren.`, say: `Achtung: ${cw.danger} Community Gefahr auf der Route.` });
   const sun = sunsetWarn(lastRoute); if (sun) notices.push(sun);
   showStartupNotices(notices);
   if (source === 'preview') {
@@ -423,7 +482,7 @@ function stopNav() {
   try { speechSynthesis.cancel(); } catch { /* ignore */ }
   if (boat) { try { boat.remove(); } catch { /* ignore */ } boat = null; }
   navUI(false);
-  lastHintKey = ''; navPrevTs = 0;
+  lastHintKey = ''; navPrevTs = 0; deviated = false;
   navEvents = []; navEvtSaid.clear(); navHoldUntil = 0; navNextExpanded = false; lastNextSig = ''; navListTs = 0;
   if (API && navSavedCam) {
     if (captainOn) API.map.easeTo({ pitch: 56, bearing: navSavedCam.bearing, duration: 600 });
@@ -450,6 +509,7 @@ async function compute() {
   busy = true;
   const hint = $('rtHint'); if (hint) hint.textContent = '⏳ Berechne Wasser-Route …';
   ensureLayers(API!.map);
+  geoReports = await fetchGeoReports().catch(() => geoReports);   // frische Community-Meldungen (5-min-Cache)
   try {
     const r = await route(A, B);
     if (!r) { renderSummary(null); setRouteGeom([], []); }
@@ -482,6 +542,37 @@ function elwisOnRoute(r: RouteResult): { html: string; count: number } {
   const ic = (t: string) => t === 'red' ? '🔴' : '🟠';
   const rows = hits.slice(0, 4).map(n => `<li>${ic(n.type)} <b>${E(n.waterway)}</b>: ${E(String(n.description || n.type_label).slice(0, 90))}${n.detail_url ? ` <a href="${E(n.detail_url)}" target="_blank" rel="noopener">ELWIS ›</a>` : ''}</li>`).join('');
   return { html: `<div class="rt-elwis"><b>⚠️ ${hits.length} ELWIS-Meldung${hits.length > 1 ? 'en' : ''} auf deiner Route:</b><ul>${rows}</ul></div>`, count: hits.length };
+}
+/* ── Community-Meldungen entlang der Route — nach Aktualität gewichtet, veraltete abgewertet (ehrlicher Stand) ── */
+function communityOnRoute(r: RouteResult): { html: string; count: number; danger: number } {
+  const reports = geoReports; if (!reports.length || r.coords.length < 2) return { html: '', count: 0, danger: 0 };
+  let minx = 180, miny = 90, maxx = -180, maxy = -90;
+  for (const c of r.coords) { if (c[0] < minx) minx = c[0]; if (c[0] > maxx) maxx = c[0]; if (c[1] < miny) miny = c[1]; if (c[1] > maxy) maxy = c[1]; }
+  minx -= 0.02; maxx += 0.02; miny -= 0.015; maxy += 0.015;
+  const step = Math.max(1, Math.floor(r.coords.length / 300));
+  const pts: LngLat[] = []; for (let i = 0; i < r.coords.length; i += step) pts.push(r.coords[i]); pts.push(r.coords[r.coords.length - 1]);
+  const hits: { rep: GeoReport; dist: number }[] = [];
+  for (const rep of reports) {
+    if (rep.lon < minx || rep.lon > maxx || rep.lat < miny || rep.lat > maxy) continue;
+    let best = Infinity; for (const p of pts) { const d = haversineM([rep.lon, rep.lat], p); if (d < best) { best = d; if (best < 120) break; } }
+    if (best > 800) continue;
+    hits.push({ rep, dist: best });
+  }
+  if (!hits.length) return { html: '', count: 0, danger: 0 };
+  const catRank: Record<string, number> = { gefahr: 0, hinweis: 1, liegeplatz: 2, erlebnis: 3 };
+  hits.sort((a, b) => (a.rep.stale ? 1 : 0) - (b.rep.stale ? 1 : 0) || catRank[a.rep.category] - catRank[b.rep.category] || a.rep.ageH - b.rep.ageH);
+  const ic: Record<string, string> = { gefahr: '⚠️', hinweis: 'ℹ️', liegeplatz: '🅿️', erlebnis: '⭐' };
+  const rows = hits.slice(0, 5).map(({ rep, dist }) => {
+    const stale = rep.stale ? ' <span class="rt-comm-stale">möglicherweise veraltet</span>' : '';
+    const conf = rep.confirmed ? ' · 🟢 bestätigt' : '';
+    const where = dist > 250 ? ` · ~${Math.round(dist)} m abseits` : '';
+    const txt = String(rep.body || rep.title || '').slice(0, 90);
+    return `<li>${ic[rep.category] || '📍'} <b>${E(rep.place || rep.title || 'Meldung')}</b>${txt ? ': ' + E(txt) : ''}<span class="rt-comm-meta">${relAge(rep.ageH)}${conf}${where}${stale}</span></li>`;
+  }).join('');
+  const danger = hits.filter(h => h.rep.category === 'gefahr' && !h.rep.stale).length;
+  const head = danger ? `⚠️ ${danger} Community-Gefahr${danger > 1 ? 'en' : ''} + weitere Meldungen auf deiner Route`
+    : `💬 ${hits.length} Community-Meldung${hits.length > 1 ? 'en' : ''} auf deiner Route`;
+  return { html: `<div class="rt-comm"><b>${head}:</b><ul>${rows}</ul><div class="rt-comm-src">Quelle: Wasserlage-Community · ungeprüft, nach Aktualität gewichtet</div></div>`, count: hits.length, danger };
 }
 /* ── Nav 4D · Alles entlang der Route (POIs im Korridor + Sonnenuntergang) ── */
 const ALONG_CATS: { key:string; label:string; icon:string; kinds:string[] }[] = [
@@ -580,9 +671,10 @@ function renderSummary(r: RouteResult | null) {
       <p class="rt-sum-note">Start oder Ziel liegt zu weit von einer gemappten schiffbaren Wasserstraße entfernt, oder die Reviere sind nicht durchgehend verbunden. Setze die Punkte näher ans Wasser oder prüfe ein anderes Revier.</p>`;
     return;
   }
-  const d = alongData(r); const ew = elwisOnRoute(r);
+  const d = alongData(r); const ew = elwisOnRoute(r); const cm = communityOnRoute(r); const spd = speedForWaterways(r.waterways);
+  const lockHrs = r.locks.map(n => { const h = lockHoursFor(n); return h ? `${E(n)} <span class="rt-lock-hrs">(${E(h.times || h.season || 'Zeiten s. Quelle')})</span>` : E(n); });
   const locks = r.locks.length
-    ? `<div class="rt-sum-row">🚪 <b>${r.locks.length} Schleuse${r.locks.length > 1 ? 'n' : ''}</b> <span>${r.locks.map(E).join(' · ')}</span></div>` : '';
+    ? `<div class="rt-sum-row">🚪 <b>${r.locks.length} Schleuse${r.locks.length > 1 ? 'n' : ''}</b> <span>${lockHrs.join(' · ')}</span></div>` : '';
   const conn = r.connectors
     ? `<div class="rt-sum-row warn">⚠️ ${r.connectors} <b>gestrichelte</b> Verbindung${r.connectors > 1 ? 'en' : ''} überbrücken Lücken im Wasserwege-Netz — können über Land/offenes Wasser verlaufen und sind <b>kein exakter Wasserweg</b>. Dort Seekarte &amp; ELWIS prüfen.</div>` : '';
   const snap = (r.fromSnapM > 250 || r.toSnapM > 250)
@@ -596,7 +688,7 @@ function renderSummary(r: RouteResult | null) {
     <div class="rt-sum-big"${detourBad ? ' style="opacity:.6"' : ''}><b>${fmtKm(r.distanceKm)}</b> · ~${fmtMin(r.durationMin)}
       <span class="rt-sum-sub">bei ~9 km/h inkl. ~20 min/Schleuse · Luftlinie ${fmtKm(r.crowKm)}</span></div>
     ${timeline(r, d)}
-    ${detour}${ew.html}${sunsetRow()}${renderAlong(d)}${locks}${conn}${snap}
+    ${detour}${spd ? `<div class="rt-sum-row">🚦 Zulässig hier max. <b>${spd.kmh} km/h</b>${spd.note ? ' · ' + E(spd.note) : ''}</div>` : ''}${ew.html}${cm.html}${sunsetRow()}${renderAlong(d)}${locks}${conn}${snap}
     ${tipNav()}
     <div class="rt-sum-acts">
       <button type="button" data-act="preview" class="rt-act rt-act-go" title="Tour als 3D-Vorschau abspielen — Boot fährt die Route ab">▶ Tour abspielen</button>
@@ -710,6 +802,8 @@ ${rtepts}
 export function initRoute(api: MapAPI, noticesProvider?: () => { notices: Notice[] } | null) {
   API = api;
   getNotices = noticesProvider || null;
+  fetchGeoReports().then(rows => { geoReports = rows; }).catch(() => {});
+  loadLockHours(); loadSpeedZones();
   const bar = $('routeBar'); if (!bar) return;
   bar.querySelectorAll<HTMLButtonElement>('.rt-pt').forEach(b => b.addEventListener('click', () => {
     pick = (b.dataset.slot as 'A' | 'B');
