@@ -12,6 +12,7 @@ let A: LngLat | null = null, B: LngLat | null = null;
 let mA: maplibregl.Marker | null = null, mB: maplibregl.Marker | null = null;
 let pick: 'A' | 'B' | null = null;
 let busy = false;
+let lastRoute: RouteResult | null = null;
 
 const E = (s: any) => { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; };
 const fmtKm = (k: number) => k < 10 ? k.toFixed(1).replace('.', ',') + ' km' : Math.round(k) + ' km';
@@ -87,6 +88,7 @@ function elwisOnRoute(r: RouteResult): string {
 }
 function renderSummary(r: RouteResult | null) {
   const el = $('routeSummary'); if (!el) return;
+  lastRoute = r;
   el.hidden = false;
   if (!r) {
     el.innerHTML = `<div class="rt-sum-head">🚤 Keine durchgehende Wasser-Route gefunden</div>
@@ -107,6 +109,10 @@ function renderSummary(r: RouteResult | null) {
     <div class="rt-sum-big"${detourBad ? ' style="opacity:.6"' : ''}><b>${fmtKm(r.distanceKm)}</b> · ~${fmtMin(r.durationMin)}
       <span class="rt-sum-sub">bei ~9 km/h inkl. ~20 min/Schleuse · Luftlinie ${fmtKm(r.crowKm)}</span></div>
     ${detour}${elwisOnRoute(r)}${locks}${conn}${snap}
+    <div class="rt-sum-acts">
+      <button type="button" data-act="share" class="rt-act" title="Route als Link teilen">📤 Route teilen</button>
+      <button type="button" data-act="gpx" class="rt-act" title="Als GPX für Kartenplotter/Navi-App exportieren">⬇️ GPX</button>
+    </div>
     <p class="rt-sum-note">Planungshilfe entlang gemappter schiffbarer Wege (OSM). <b>Keine Navigationsgrundlage</b> — verbindlich bleiben ELWIS-Meldungen, amtliche Fahrrinne & Befahrensregeln. Aktuelle Sperrungen siehe „Amtliche Lage".</p>`;
 }
 
@@ -168,6 +174,47 @@ async function toggleNet() {
   } catch { if (hint) hint.textContent = 'Wasserstraßennetz konnte nicht geladen werden.'; }
 }
 
+function flashHint(msg: string) {
+  const hint = $('rtHint'); if (!hint) return;
+  const prev = hint.textContent; hint.textContent = msg;
+  setTimeout(() => { if (hint.textContent === msg) hint.textContent = prev || ''; }, 2600);
+}
+
+/** Teilbarer Deep-Link: A/B als Koordinaten in der URL. */
+async function shareRoute() {
+  if (!A || !B) return;
+  const u = new URL(location.href.split('?')[0]);
+  u.searchParams.set('a', `${A[0]},${A[1]}`);
+  u.searchParams.set('b', `${B[0]},${B[1]}`);
+  const url = u.toString();
+  try { if ((navigator as any).share) { await (navigator as any).share({ title: 'Wasserlage · Wasser-Route', text: 'Geplante Route auf dem Wasser', url }); return; } } catch { /* abgebrochen */ }
+  try { await navigator.clipboard.writeText(url); flashHint('🔗 Routen-Link kopiert — am Handy öffnen & weiterfahren.'); }
+  catch { window.prompt('Routen-Link kopieren:', url); }
+}
+
+/** GPX-Export der berechneten Linie (für Kartenplotter / Navi-Apps). */
+function exportGpx() {
+  if (!lastRoute || !lastRoute.coords.length) return;
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const wpt = (ll: LngLat, name: string) => `  <wpt lat="${ll[1].toFixed(6)}" lon="${ll[0].toFixed(6)}"><name>${esc(name)}</name></wpt>\n`;
+  const rtepts = lastRoute.coords.map(c => `    <rtept lat="${c[1].toFixed(6)}" lon="${c[0].toFixed(6)}"/>`).join('\n');
+  const km = lastRoute.distanceKm.toFixed(1).replace('.', ',');
+  const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Wasserlage (wavebite)" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata><name>Wasserlage Wasser-Route</name><desc>${km} km · Planungshilfe entlang schiffbarer Wege. Verbindlich: ELWIS &amp; amtliche Fahrrinne.</desc></metadata>
+${A ? wpt(A, 'Start (A)') : ''}${B ? wpt(B, 'Ziel (B)') : ''}  <rte>
+    <name>Wasser-Route (${km} km)</name>
+${rtepts}
+  </rte>
+</gpx>`;
+  const blob = new Blob([gpx], { type: 'application/gpx+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'wasserlage-route.gpx'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+  flashHint('⬇️ GPX gespeichert — in Kartenplotter oder Navi-App importieren.');
+}
+
 export function initRoute(api: MapAPI, noticesProvider?: () => { notices: Notice[] } | null) {
   API = api;
   getNotices = noticesProvider || null;
@@ -180,6 +227,26 @@ export function initRoute(api: MapAPI, noticesProvider?: () => { notices: Notice
   $('rtGeo')?.addEventListener('click', () => tryGeo(false));
   $('rtClear')?.addEventListener('click', clearRoute);
   $('rtNet')?.addEventListener('click', toggleNet);
+  $('routeSummary')?.addEventListener('click', (e) => {
+    const t = (e.target as HTMLElement).closest('[data-act]'); if (!t) return;
+    const act = t.getAttribute('data-act');
+    if (act === 'gpx') exportGpx(); else if (act === 'share') shareRoute();
+  });
+  /* Geteilter Deep-Link ?a=lng,lat&b=lng,lat → Auto-Route */
+  try {
+    const sp = new URLSearchParams(location.search);
+    const pa = sp.get('a'), pb = sp.get('b');
+    if (pa && pb) {
+      const av = pa.split(',').map(Number), bv = pb.split(',').map(Number);
+      if (av.length === 2 && bv.length === 2 && av.every(isFinite) && bv.every(isFinite)) {
+        loadGraph().then(() => {
+          setSlot('A', [av[0], av[1]], 'Geteilter Start');
+          setSlot('B', [bv[0], bv[1]], 'Geteiltes Ziel');
+          document.getElementById('karte')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }).catch(() => {});
+      }
+    }
+  } catch { /* ignore */ }
   api.map.on('click', (e) => {
     if (!pick) return;
     const ll: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)];

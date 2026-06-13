@@ -668,3 +668,15 @@ html.is-offline .badge:not(.err){opacity:.5}
   .exp-card, .tour-card, .b2b, .partner-logo { transition: none; }
   .exp-card:hover, .tour-card:hover, .b2b:hover, .partner-logo:hover { transform: none; }
 }
+
+/* === Routen-Aktionen: Teilen + GPX === */
+.rt-sum-acts { display: flex; gap: 8px; margin: 10px 0 4px; flex-wrap: wrap; }
+.rt-act {
+  appearance: none; cursor: pointer; font: inherit; font-size: .82rem; font-weight: 600;
+  color: #eafaff; background: rgba(63,195,201,.16);
+  border: 1px solid rgba(63,195,201,.5); border-radius: 999px; padding: 7px 14px;
+  transition: background .2s ease, transform .15s ease, border-color .2s ease;
+}
+.rt-act:hover { background: rgba(63,195,201,.3); border-color: var(--cyan); transform: translateY(-1px); }
+.rt-act:active { transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) { .rt-act { transition: none; } .rt-act:hover { transform: none; } }
