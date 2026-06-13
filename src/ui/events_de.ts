@@ -3,6 +3,7 @@
  * Kommende zuerst, zielgruppen-gefiltert, Quelle + Termin + Eintritt sichtbar, offline-fähig.
  * EHRLICH: nur belegte Termine als „exact"; sonst Saison-Label. Keine Navigation. */
 import { currentMode } from './modes';
+import { openEvent } from './detail';
 
 interface Evt {
   id: string; name: string; art: string; bundesland: string[]; ort: string;
@@ -36,7 +37,7 @@ function card(e: Evt): string {
   const land = e.bundesland.map(c => E(BL[c] || c)).join(' / ');
   const tags = e.modes.map(m => `<span class="td-tag">${E(MC[m] || m)}</span>`).join('');
   const dateTxt = st === 'past' ? `${E(dateLabel(e))} · 2026 vorbei · jährlich` : E(dateLabel(e));
-  return `<article class="ed-card glass${st === 'past' ? ' ed-past' : ''}">
+  return `<article class="ed-card glass td-click${st === 'past' ? ' ed-past' : ''}" data-id="${E(e.id)}" tabindex="0" role="button" aria-label="${E(e.name)} — Details">
     <div class="ed-top"><span class="ed-date">${dateTxt}</span><span class="td-prio ${e.importprio.toLowerCase()}">${E(e.importprio)}</span></div>
     <h3 class="ed-name">${E(e.name)} <span class="ed-art">${E(e.art)}</span></h3>
     <div class="ed-where">📍 ${E(e.ort)} · ${land}</div>
@@ -78,4 +79,9 @@ export async function initEventsDE() {
   if (!ALL.length) { const g = document.getElementById('eventsDEGrid'); if (g) g.innerHTML = '<p class="exp-empty">Event-Daten gerade nicht erreichbar.</p>'; return; }
   render();
   window.addEventListener('wl3-mode', render);
+  document.getElementById('eventsDEGrid')?.addEventListener('click', (ev) => {
+    const target = ev.target as HTMLElement; if (target.closest('a')) return;
+    const c = target.closest('.ed-card'); if (!c) return;
+    const e = ALL.find(x => x.id === c.getAttribute('data-id')); if (e) openEvent(e);
+  });
 }

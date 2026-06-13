@@ -3,6 +3,7 @@
  * Zielgruppen-gefiltert (currentMode), Quelle je Tour sichtbar, offline-fähig (SW-Cache).
  * EHRLICH: keine Navigation — verbindlich bleiben ELWIS & amtliche Fahrrinne. */
 import { currentMode } from './modes';
+import { openRevier } from './detail';
 
 interface Tour {
   id: string; bundesland: string[]; revier: string; name: string; modes: string[];
@@ -29,7 +30,7 @@ function card(t: Tour): string {
   const pois = t.pois.slice(0, 3).map(E).join(' · ');
   const umt = t.umtragen && t.umtragen !== 'keine' ? `<div class="td-warn">⚠️ Umtragen: ${E(t.umtragen)}</div>` : '';
   const schutz = t.schutzgebiete.length ? `<div class="td-line">🌿 ${t.schutzgebiete.map(E).join(' · ')}</div>` : '';
-  return `<article class="td-card glass">
+  return `<article class="td-card glass td-click" data-id="${E(t.id)}" tabindex="0" role="button" aria-label="${E(t.name)} — Details">
     <div class="td-region">${land}<span class="td-rev">${E(t.revier)}</span><span class="td-prio ${PRIO_CLS[t.importprio] || 'p3'}">${E(t.importprio)}</span></div>
     <h3 class="td-name">${E(t.name)} <span class="td-type">${E(t.type)}${t.rundtour ? ' · Rundtour' : ''}</span></h3>
     <ul class="td-facts">${facts}</ul>
@@ -73,4 +74,9 @@ export async function initTourenDE() {
   if (!ALL.length) { const g = document.getElementById('tourDEGrid'); if (g) g.innerHTML = '<p class="exp-empty">Revierdaten gerade nicht erreichbar.</p>'; return; }
   render();
   window.addEventListener('wl3-mode', render);
+  document.getElementById('tourDEGrid')?.addEventListener('click', (ev) => {
+    const target = ev.target as HTMLElement; if (target.closest('a')) return;
+    const c = target.closest('.td-card'); if (!c) return;
+    const t = ALL.find(x => x.id === c.getAttribute('data-id')); if (t) openRevier(t);
+  });
 }
