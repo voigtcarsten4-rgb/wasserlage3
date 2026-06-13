@@ -22,6 +22,18 @@ export function initGamification() {
   if (passEl) renderPass(passEl);
   if (lbEl) renderLeaderboard(lbEl);
   document.addEventListener('wl3-points', () => { if (passEl) renderPass(passEl); });
+  wireGameLinks();
+}
+/* Game-Bridge (Grundlage): Captain-Pass-Identität (device-id) an Water-Patrol weiterreichen,
+   damit Spiel-Fortschritt später demselben Captain-Pass gutgeschrieben werden kann.
+   Punkte-Rückübertragung erfolgt, sobald die Game-Seite gegen die geteilte device-id schreibt. */
+function wireGameLinks() {
+  try {
+    const did = device();
+    document.querySelectorAll<HTMLAnchorElement>('a[href*="wave-bite-water-patrol"]').forEach(a => {
+      try { const u = new URL(a.href); u.searchParams.set('from', 'wasserlage'); u.searchParams.set('device', did); a.href = u.toString(); } catch { /* ignore */ }
+    });
+  } catch { /* ignore */ }
 }
 
 async function renderPass(el: HTMLElement) {
