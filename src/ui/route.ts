@@ -31,6 +31,10 @@ function ensureLayers(map: maplibregl.Map) {
   map.addLayer({ id: 'wlroute-line', type: 'line', source: 'wlroute',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
     paint: { 'line-color': '#3FC3C9', 'line-width': 4.5 } });
+  /* „Licht auf Wasser" — heller, fließender Glanz, deutet die Fahrtrichtung an (start unsichtbar, animiert via startFlow) */
+  map.addLayer({ id: 'wlroute-flow', type: 'line', source: 'wlroute',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#eafffe', 'line-width': 2.6, 'line-opacity': 0, 'line-blur': 0.6 } });
   /* Connector-Überbrückungen (Netzlücken) — gestrichelt & amber: KEIN exakter Wasserweg */
   map.addSource('wlroute-conn', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } as any });
   map.addLayer({ id: 'wlroute-conn', type: 'line', source: 'wlroute-conn',
@@ -41,6 +45,40 @@ function setRouteGeom(water: LngLat[][], conn: LngLat[][]) {
   const ml = (segs: LngLat[][]) => ({ type: 'Feature', geometry: { type: 'MultiLineString', coordinates: segs }, properties: {} });
   (API!.map.getSource('wlroute') as maplibregl.GeoJSONSource | undefined)?.setData(ml(water) as any);
   (API!.map.getSource('wlroute-conn') as maplibregl.GeoJSONSource | undefined)?.setData(ml(conn) as any);
+  if (water.length) startFlow(); else stopFlow();
+}
+
+/* ── „Licht auf Wasser": fließender Glanz entlang der Route + sanftes Atmen des Glows.
+   Performant (Repaint nur bei Dash-Schrittwechsel ~11 fps) und reduced-motion-sicher. ── */
+const FLOW_SEQ: number[][] = [
+  [0,4,3],[0.5,4,2.5],[1,4,2],[1.5,4,1.5],[2,4,1],[2.5,4,0.5],[3,4,0],
+  [0,0.5,3,3.5],[0,1,3,3],[0,1.5,3,2.5],[0,2,3,2],[0,2.5,3,1.5],[0,3,3,1],[0,3.5,3,0.5],
+];
+let flowRaf = 0; let flowStep = -1;
+const reduceMotion = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
+function startFlow() {
+  stopFlow();
+  if (!API || reduceMotion()) return;
+  const map = API.map;
+  try { map.setPaintProperty('wlroute-flow', 'line-opacity', 0.85); } catch { /* Layer noch nicht bereit */ }
+  const tick = (ts: number) => {
+    const step = Math.floor((ts / 90) % FLOW_SEQ.length);
+    if (step !== flowStep) {
+      flowStep = step;
+      try {
+        map.setPaintProperty('wlroute-flow', 'line-dasharray', FLOW_SEQ[step] as any);
+        map.setPaintProperty('wlroute-glow', 'line-opacity', 0.32 + 0.13 * Math.sin(ts / 900));
+      } catch { /* ignore */ }
+    }
+    flowRaf = requestAnimationFrame(tick);
+  };
+  flowRaf = requestAnimationFrame(tick);
+}
+function stopFlow() {
+  if (flowRaf) { cancelAnimationFrame(flowRaf); flowRaf = 0; }
+  flowStep = -1;
+  try { API?.map.setPaintProperty('wlroute-flow', 'line-opacity', 0); } catch { /* ignore */ }
+  try { API?.map.setPaintProperty('wlroute-glow', 'line-opacity', 0.35); } catch { /* ignore */ }
 }
 
 function marker(slot: 'A' | 'B', ll: LngLat) {

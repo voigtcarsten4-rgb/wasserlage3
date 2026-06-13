@@ -863,3 +863,32 @@ html.is-offline .badge:not(.err){opacity:.5}
 .rv-shot figcaption{position:absolute;left:0;right:0;bottom:0;padding:20px 12px 9px;color:#fff;font-size:.82rem;font-weight:600;
   background:linear-gradient(to top,rgba(4,18,31,.80),transparent)}
 @media(max-width:760px){ .revier-shots{grid-template-columns:1fr 1fr} .rv-shot:first-child{grid-column:1/-1} }
+
+
+/* ═══ Premium-Motion · Routen-Cockpit (Emil-Style Springs, reduced-motion-sicher) ═══ */
+@media (prefers-reduced-motion: no-preference){
+  .route-summary:not([hidden]){ animation: rtSheetIn .52s cubic-bezier(.22,1,.36,1) both; }
+  @keyframes rtSheetIn { from{ opacity:0; transform:translateY(14px) } to{ opacity:1; transform:translateY(0) } }
+  @media (max-width:640px){
+    .route-summary:not([hidden]){ animation: rtSheetUp .46s cubic-bezier(.22,1,.36,1) both; }
+    @keyframes rtSheetUp { from{ transform:translateY(100%) } to{ transform:translateY(0) } }
+  }
+  .rt-lilly{ animation: rtFadeUp .55s .04s cubic-bezier(.22,1,.36,1) both }
+  .rt-tl{ animation: rtFadeUp .55s .12s cubic-bezier(.22,1,.36,1) both }
+  .rt-along{ animation: rtFadeUp .55s .20s cubic-bezier(.22,1,.36,1) both }
+  @keyframes rtFadeUp { from{ opacity:0; transform:translateY(8px) } to{ opacity:1; transform:translateY(0) } }
+}
+/* Micro-Interactions — leichter Spring-Overschwung (Emil bouncy) */
+.rt-tl-n{ transition: transform .25s cubic-bezier(.34,1.56,.64,1) }
+.rt-tl-n:hover{ transform: translateY(-2px) }
+.rt-act{ transition: transform .2s cubic-bezier(.34,1.56,.64,1), background .2s, border-color .2s }
+.rt-act:hover{ transform: translateY(-1px) }
+.rt-act:active{ transform: scale(.96) }
+.rv-chip{ transition: transform .18s cubic-bezier(.34,1.56,.64,1), background .15s, border-color .15s, color .15s }
+.rv-chip:active{ transform: scale(.95) }
+.chal-card:active{ transform: scale(.985) }
+.rv-shot{ transition: transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s }
+.rv-shot:hover{ transform: translateY(-3px); box-shadow:0 14px 34px rgba(4,18,31,.22) }
+/* Typografie tighter (Emil) */
+.rt-sum-head, .rt-sum-big b, .sect-h{ letter-spacing:-0.02em }
+.rt-lilly-txt{ letter-spacing:-0.01em }
