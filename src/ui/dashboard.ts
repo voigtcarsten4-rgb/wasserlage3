@@ -113,15 +113,34 @@ export function renderWetter(w: Weather|null) {
 export function renderPegel(gauges: Gauge[], ft: {stand:string; havel_min_cm:number}|null) {
   const el = $('pegel');
   if (!gauges.length) { badge('bdgPegel',false,'nicht erreichbar'); el.innerHTML='<div class="row"><span class="ic">📡</span><div>Pegelonline gerade nicht erreichbar.</div></div>'; return; }
-  badge('bdgPegel',true,`● Live · Pegelonline · ${gauges.length} Stationen`);
-  /* repräsentative Auswahl: je Gewässer bis zu 2 Pegel (BB zuerst, dann DE-Ströme) — keine fragile Namensliste */
+  /* Wasserstand-Einordnung je Pegel (offizielle WSV-Kennwerte): Niedrig-/Mittel-/Hochwasser + schiffbare Marken NSW/HSW */
+  const waterState = (cm?: Gauge['currentMeasurement']): { cls: 'ok'|'lo'|'hi'; t: string } | null => {
+    if (!cm) return null;
+    const m = cm.stateMnwMhw, n = cm.stateNswHsw;
+    if (m === 'high') return { cls: 'hi', t: 'Hochwasser' };
+    if (n === 'high') return { cls: 'hi', t: 'über HSW' };
+    if (m === 'low') return { cls: 'lo', t: 'Niedrigwasser' };
+    if (n === 'low') return { cls: 'lo', t: 'unter NSW' };
+    if (m === 'normal' || n === 'normal') return { cls: 'ok', t: 'Mittel' };
+    return null;
+  };
+  /* Auffällige über ALLE Stationen zählen (Headline-Mehrwert) */
+  let nLo = 0, nHi = 0, nKnown = 0;
+  for (const g of gauges) { const s = waterState(g.currentMeasurement); if (s) { nKnown++; if (s.cls === 'lo') nLo++; else if (s.cls === 'hi') nHi++; } }
+  badge('bdgPegel', true, `● Live · Pegelonline · ${gauges.length} Stationen`);
+  /* repräsentative Auswahl: je Gewässer bis zu 2 Pegel — auffällige (Hoch-/Niedrigwasser) bevorzugt */
   const byWater: Record<string, Gauge[]> = {};
   for (const g of gauges) { const w = g.water?.shortname || '—'; (byWater[w] = byWater[w] || []).push(g); }
+  const rank = (g: Gauge) => { const s = waterState(g.currentMeasurement); return s ? (s.cls === 'hi' ? 0 : s.cls === 'lo' ? 1 : 2) : 3; };
   const top: Gauge[] = [];
-  for (const w of Object.keys(byWater)) top.push(...byWater[w].slice(0, 2));
-  top.splice(20);
-  el.innerHTML = top.map(g=>`<div class="kv"><span>${E(g.shortname)} <small style="color:var(--ink2)">${E(g.water?.shortname??'')}</small></span>
+  for (const w of Object.keys(byWater)) top.push(...byWater[w].sort((a, b) => rank(a) - rank(b)).slice(0, 2));
+  top.sort((a, b) => rank(a) - rank(b)); top.splice(20);
+  const pill = (g: Gauge) => { const s = waterState(g.currentMeasurement); return s ? ` <span class="pg-state ${s.cls}">${s.t}</span>` : ''; };
+  const head = (nHi || nLo)
+    ? `<div class="pg-head ${nHi ? 'hi' : 'lo'}">${nHi ? `🔴 ${nHi} Pegel mit Hochwasser-Lage` : ''}${nHi && nLo ? ' · ' : ''}${nLo ? `🟡 ${nLo} Pegel mit Niedrigwasser` : ''} <small>(von ${nKnown} amtlich eingestuften)</small></div>`
+    : (nKnown ? `<div class="pg-head ok">🟢 Alle ${nKnown} eingestuften Pegel im Mittelwasser-Bereich</div>` : '');
+  el.innerHTML = head + top.map(g=>`<div class="kv"><span>${E(g.shortname)} <small style="color:var(--ink2)">${E(g.water?.shortname??'')}</small>${pill(g)}</span>
       <b>${g.currentMeasurement?Math.round(g.currentMeasurement.value)+' cm':'—'}</b></div>`).join('')
-    + (ft?`<div class="kv"><span>⚓ Fahrrinne Havel (min)</span><b>${(ft.havel_min_cm/100).toFixed(2).replace('.',',')} m</b></div>
-       <div class="row"><span class="ic">ℹ️</span><div class="m">Fahrrinnen-/Tauchtiefen: ELWIS, Stand ${E(ft.stand)}</div></div>`:'');
+    + (ft?`<div class="kv"><span>⚓ Fahrrinne Havel (min)</span><b>${(ft.havel_min_cm/100).toFixed(2).replace('.',',')} m</b></div>`:'')
+    + `<div class="row"><span class="ic">ℹ️</span><div class="m">Einstufung nach amtlichen WSV-Kennwerten (Niedrig-/Mittel-/Hochwasser, schiffbare Marken NSW/HSW)${ft?` · Fahrrinnentiefen ELWIS, Stand ${E(ft.stand)}`:''}. Verbindlich: ELWIS & amtliche Fahrrinne.</div></div>`;
 }

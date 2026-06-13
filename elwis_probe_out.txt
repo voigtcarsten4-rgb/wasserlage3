@@ -1,0 +1,9 @@
+INDEX len 36821
+FORMS ["<form name=\"searchService\" action=\"https://www.elwis.de/SiteGlobals/Forms/Suche/Servicesuche_Formular.html\" method=\"get\" enctype=\"application/x-www-form-urlencoded\">"]
+ACTIONS ["action=\"https://www.elwis.de/SiteGlobals/Forms/Suche/Servicesuche_Formular.html\""]
+SCRIPT SRC ["<script type=\"text/javascript\" src=\"/DE/dynamisch/bin/js/jquery-2.1.4.min.js\"","<script type=\"text/javascript\" src=\"/DE/dynamisch/bin/js/misc.js\"","<script type=\"text/javascript\" src=\"https://www.elwis.de/SiteGlobals/Frontend/JavaScript/init/global.js?v=1\""]
+IFRAME []
+ENDPOINT-LIKE []
+NfbLINKS ["href=\"/DE/dynamisch/Nfb/\""]
+SELECT []
+DATA-URL attrs []

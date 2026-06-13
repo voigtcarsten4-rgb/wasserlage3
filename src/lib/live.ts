@@ -18,7 +18,7 @@ export async function fetchFT(): Promise<{updated_de:string; stand:string; havel
 }
 
 /* Pegelonline: EIN Aggregat-Call statt 27 Einzelrequests (Lehre aus 2.0-Audit) */
-export interface Gauge { uuid:string; shortname:string; water:{shortname:string}; currentMeasurement?:{value:number; timestamp:string; stateMnwMhw?:string} }
+export interface Gauge { uuid:string; shortname:string; water:{shortname:string}; currentMeasurement?:{value:number; timestamp:string; stateMnwMhw?:string; stateNswHsw?:string} }
 export async function fetchPegel(uuids: string[]): Promise<Gauge[]> {
   /* Pegelonline limitiert die ids-Liste → in Batches (≤20) parallel abrufen und mergen */
   const chunks: string[][] = [];
@@ -26,7 +26,7 @@ export async function fetchPegel(uuids: string[]): Promise<Gauge[]> {
   const out: Gauge[] = [];
   await Promise.all(chunks.map(async ch => {
     try {
-      const r = await fetch(`https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations.json?ids=${ch.join(',')}&includeCurrentMeasurement=true&includeTimeseries=false`, { signal: AbortSignal.timeout(12000) });
+      const r = await fetch(`https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations.json?ids=${ch.join(',')}&includeCurrentMeasurement=true&includeTimeseries=true`, { signal: AbortSignal.timeout(12000) });
       if (!r.ok) return;
       const all = await r.json();
       for (const s of all) out.push({ uuid:s.uuid, shortname:s.shortname, water:s.water,
