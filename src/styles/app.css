@@ -759,3 +759,11 @@ html.is-offline .badge:not(.err){opacity:.5}
 .pg-trend.down { color: #76e6b0; }    /* fallend */
 .pg-trend.flat { color: var(--ink2, #8fb0bd); }
 .pg-trend.strong { color: #ff9a8a; }  /* starke Änderung */
+
+/* Fluss-Querschnitt-Grafik im Tiefen-Check */
+.ft-xsec {
+  width: 100%; max-width: 480px; height: auto; display: block; margin: 0 auto 18px;
+  border-radius: 14px; border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 10px 30px -12px rgba(2,18,28,.5);
+}
+.ft-xsec text { font-family: 'Inter', system-ui, sans-serif; }

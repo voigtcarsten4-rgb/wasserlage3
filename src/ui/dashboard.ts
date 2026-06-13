@@ -218,6 +218,50 @@ function verdict(cm:number|null, dCm:number): {cls:string; ic:string; t:string} 
   return { cls:'bad', ic:'⛔', t:'zu flach' };
 }
 
+/* Realistische Fluss-Querschnitt-Grafik: Boot auf Wasserlinie, Kiel bis Tiefgang, Grund = flachste gemeldete Stelle */
+function drawCrossSection(dCm: number, minCm: number): string {
+  const surfaceY = 38, bottomY = 150, depthPx = bottomY - surfaceY;
+  const scale = Math.max(minCm, dCm, 250) * 1.05;
+  const y = (cm: number) => surfaceY + Math.min(depthPx, cm / scale * depthPx);
+  const bedY = y(minCm), keelY = y(dCm);
+  const clear = minCm - dCm;
+  const cls = clear >= 40 ? 'ok' : clear >= 0 ? 'warn' : 'bad';
+  const stroke = cls === 'ok' ? '#27c08d' : cls === 'warn' ? '#D9B14D' : '#e84c3c';
+  const W = 440, cx = W / 2;
+  const clearLabel = clear >= 0 ? `Kielfreiheit ~${clear} cm` : `⛔ ${Math.abs(clear)} cm zu tief`;
+  return `<svg class="ft-xsec ${cls}" viewBox="0 0 ${W} 168" role="img" aria-label="Querschnitt: Tiefgang gegen flachste gemeldete Tiefe" data-clear="${clear}">
+    <defs>
+      <linearGradient id="xsW" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#5fc8d6"/><stop offset="1" stop-color="#0d4a63"/>
+      </linearGradient>
+      <linearGradient id="xsSky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#1a3550"/><stop offset="1" stop-color="#21506b"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="${W}" height="${surfaceY}" fill="url(#xsSky)"/>
+    <path d="M0 ${surfaceY} H${W} V${bottomY} Q${cx} ${bottomY + 14} 0 ${bottomY} Z" fill="url(#xsW)" opacity="0.92"/>
+    <path d="M0 ${bedY} Q${cx * 0.5} ${bedY - 8} ${cx} ${bedY + 6} T${W} ${bedY} V168 H0 Z" fill="#6b5436"/>
+    <path d="M0 ${bedY} Q${cx * 0.5} ${bedY - 8} ${cx} ${bedY + 6} T${W} ${bedY}" fill="none" stroke="#8a6f49" stroke-width="2"/>
+    <line x1="0" y1="${surfaceY}" x2="${W}" y2="${surfaceY}" stroke="#bfeef5" stroke-width="1.5" opacity="0.85"/>
+    <!-- Boot -->
+    <g transform="translate(${cx},0)">
+      <rect x="-20" y="${surfaceY - 13}" width="40" height="13" rx="3" fill="#e9eef2"/>
+      <rect x="-9" y="${surfaceY - 24}" width="20" height="12" rx="2" fill="#cfd8de"/>
+      <path d="M-46 ${surfaceY} L46 ${surfaceY} L30 ${keelY} Q0 ${keelY + 12} -30 ${keelY} Z" fill="#1f2d38" stroke="#0c151c" stroke-width="1.5"/>
+      <line x1="0" y1="${surfaceY}" x2="0" y2="${keelY}" stroke="#fff" stroke-width="1" stroke-dasharray="3 3" opacity="0.5"/>
+    </g>
+    <!-- Kielfreiheit -->
+    <g>
+      <line x1="${cx + 70}" y1="${keelY}" x2="${cx + 70}" y2="${bedY}" stroke="${stroke}" stroke-width="2"/>
+      <line x1="${cx + 64}" y1="${keelY}" x2="${cx + 76}" y2="${keelY}" stroke="${stroke}" stroke-width="2"/>
+      <line x1="${cx + 64}" y1="${bedY}" x2="${cx + 76}" y2="${bedY}" stroke="${stroke}" stroke-width="2"/>
+      <text x="${cx + 82}" y="${(keelY + bedY) / 2 + 4}" fill="${stroke}" font-size="13" font-weight="700">${clearLabel}</text>
+    </g>
+    <text x="10" y="${surfaceY - 6}" fill="#bfeef5" font-size="12">Tiefgang ${m2(dCm)}</text>
+    <text x="10" y="${Math.min(162, bedY + 16)}" fill="#e7d3a8" font-size="12">typ. Fahrrinnentiefe ${m2(minCm)} (Median)</text>
+  </svg>`;
+}
+
 function renderFTBars() {
   const el = document.getElementById('tiefe'); if (!el) return;
   const sum = document.getElementById('tiefeSum');
@@ -231,6 +275,9 @@ function renderFTBars() {
   const items = lastFT.items;
   const reported = items.filter(i => i.cm != null);
   const maxCm = Math.max(300, dCm, ...reported.map(i => i.cm as number));
+  const minCm = reported.length ? Math.min(...reported.map(i => i.cm as number)) : 0;
+  const sortedCm = reported.map(i => i.cm as number).sort((a, b) => a - b);
+  const medianCm = sortedCm.length ? sortedCm[Math.floor(sortedCm.length / 2)] : 0;
   const scale = Math.ceil(maxCm / 50) * 50;
   let free = 0, tight = 0, blocked = 0;
   for (const i of reported) { const v = verdict(i.cm, dCm); if (v.cls==='ok') free++; else if (v.cls==='warn') tight++; else blocked++; }
@@ -262,5 +309,6 @@ function renderFTBars() {
     }).join('');
     html += `<div class="ft-group"><div class="ft-gh">${E(g)} <small>${E(groups[g][0].abk)}</small></div>${rows}</div>`;
   }
-  el.innerHTML = html + `<div class="row"><span class="ic">⚓</span><div class="m">Marke = dein Tiefgang. Werte: amtliche ELWIS-Fahrrinnen-/Tauchtiefen, Stand ${E(lastFT.stand || '—')}. Empfehlung: mind. 30–40 cm Sicherheitswasser unter dem Kiel. Verbindlich bleibt ELWIS.</div></div>`;
+  const viz = reported.length ? drawCrossSection(dCm, medianCm) : '';
+  el.innerHTML = viz + html + `<div class="row"><span class="ic">⚓</span><div class="m">Marke = dein Tiefgang. Werte: amtliche ELWIS-Fahrrinnen-/Tauchtiefen, Stand ${E(lastFT.stand || '—')}. Empfehlung: mind. 30–40 cm Sicherheitswasser unter dem Kiel. Verbindlich bleibt ELWIS.</div></div>`;
 }
