@@ -148,6 +148,13 @@ let navS = 0, navTotM = 0, navSeg = 1; let navCum: number[] = []; let navCoords:
 let navPlayMps = 0;
 let boat: maplibregl.Marker | null = null;
 let speakOn = false; let lastHintKey = ''; let navSavedCam: any = null;
+/* Vorberechnete Ereignisse entlang der Route (Schleusen + Korridor-POIs), nach Strecke sortiert.
+ * prio 1=Sicherheit/Pflicht · 2=Nutzen/Versorgung · 3=Erlebnis. side: -1 backbord · 0 voraus · +1 steuerbord. */
+interface NavEvt { s: number; prio: 1 | 2 | 3; icon: string; label: string; name: string; side: number; perp: number; kind: string; key: string }
+let navEvents: NavEvt[] = [];
+const navEvtSaid = new Set<string>();
+let navHoldUntil = 0;            // hält Start-Hinweise (ELWIS/Sonnenuntergang) kurz, bevor Bewegungshinweise übernehmen
+let navNextExpanded = false; let navListTs = 0; let lastNextSig = '';
 
 function navParam(coords: LngLat[]) {
   navCoords = coords; navCum = [0]; let t = 0;
@@ -200,28 +207,135 @@ function navUI(create: boolean) {
         <div class="nv"><span class="nv-k">Rest</span><span class="nv-v" id="nvRest">–</span></div>
         <div class="nv"><span class="nv-k">Ankunft</span><span class="nv-v" id="nvEta">–</span></div>
       </div>
-      <div class="nav-lilly" id="nvLilly"><span class="nav-lilly-av">🧭</span><span id="nvHint">Lilly an Bord — gute Fahrt!</span></div>
-      <div class="nav-ctrls">
-        <button type="button" id="nvSpeak" class="nav-btn" title="Sprachansagen an/aus">🔈 Stumm</button>
-        <button type="button" id="nvStop" class="nav-btn stop" title="Navigation beenden">⏹ Stopp</button>
+      <div class="nav-bottom">
+        <div class="nav-lilly" id="nvLilly"><span class="nav-lilly-av">🧭</span><span id="nvHint">Lilly an Bord — gute Fahrt!</span></div>
+        <div class="nav-next" id="nvNext" hidden>
+          <div class="nav-next-h">Als Nächstes</div>
+          <ul class="nav-next-list" id="nvNextList"></ul>
+          <button type="button" id="nvMore" class="nav-next-more" hidden>mehr anzeigen</button>
+        </div>
+        <div class="nav-ctrls">
+          <button type="button" id="nvSpeak" class="nav-btn" title="Sprachansagen an/aus">🔈 Stumm</button>
+          <button type="button" id="nvStop" class="nav-btn stop" title="Navigation beenden">⏹ Stopp</button>
+        </div>
       </div>`;
     cont.appendChild(wrap);
     document.getElementById('nvStop')?.addEventListener('click', stopNav);
     document.getElementById('nvSpeak')?.addEventListener('click', toggleSpeak);
+    document.getElementById('nvMore')?.addEventListener('click', () => { navNextExpanded = !navNextExpanded; lastNextSig = ''; navListTs = 0; const b = document.getElementById('nvMore'); if (b) b.textContent = navNextExpanded ? 'weniger anzeigen' : 'mehr anzeigen'; });
     requestAnimationFrame(() => wrap?.classList.add('in'));
   } else if (!create && wrap) { wrap.remove(); }
 }
+/* Korridor-POI-Typen → Icon/Label/Priorität (1=Sicherheit · 2=Versorgung/Nutzen · 3=Erlebnis) */
+const POI_META: Record<string, { icon: string; label: string; prio: 1 | 2 | 3 }> = {
+  gelbe_welle: { icon: '⚠️', label: 'Community-Hinweis', prio: 1 },
+  wsp: { icon: '🚨', label: 'WSP & Rettung', prio: 1 }, notfall: { icon: '🆘', label: 'Notfallpunkt', prio: 1 }, medizin: { icon: '⚕️', label: 'Medizin', prio: 1 },
+  tank: { icon: '⛽', label: 'Tankstelle', prio: 2 }, hafen: { icon: '⚓', label: 'Hafen', prio: 2 }, anleger: { icon: '🪢', label: 'Gastanleger', prio: 2 },
+  entsorgung: { icon: '♻️', label: 'Entsorgung', prio: 2 }, werkstatt: { icon: '🛠️', label: 'Werkstatt', prio: 2 }, slip: { icon: '🛞', label: 'Slip', prio: 2 },
+  shop: { icon: '🛒', label: 'Proviant', prio: 2 }, gastro: { icon: '🍽️', label: 'Restaurant', prio: 2 }, badestelle: { icon: '🏖️', label: 'Badestelle', prio: 2 },
+  sight: { icon: '🏰', label: 'Sehenswürdigkeit', prio: 3 }, event: { icon: '🎉', label: 'Event', prio: 3 }, charter: { icon: '⛵', label: 'Charter', prio: 3 },
+};
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const sideWord = (e: NavEvt) => e.side === 0 ? 'voraus' : (e.side < 0 ? 'links voraus' : 'rechts voraus');
+/* Ereignisse EINMAL vorberechnen: Schleusen (positioniert) + POIs im ~650-m-Korridor mit Strecke & Seite. */
+function buildNavEvents() {
+  navEvents = []; navEvtSaid.clear(); lastNextSig = ''; navNextExpanded = false; navListTs = 0;
+  if (!lastRoute) return;
+  const longRoute = navTotM > 15000;
+  for (const l of (lastRoute.lockPts || [])) navEvents.push({ s: l.km * 1000, prio: 1, icon: '🚪', label: 'Schleuse', name: l.name, side: 0, perp: 0, kind: 'lock', key: 'lock:' + l.name + ':' + Math.round(l.km * 1000) });
+  let feats: any[] = []; try { feats = API?.features() || []; } catch { feats = []; }
+  if (feats.length && navCoords.length >= 2) {
+    let minx = 180, miny = 90, maxx = -180, maxy = -90;
+    for (const c of navCoords) { if (c[0] < minx) minx = c[0]; if (c[0] > maxx) maxx = c[0]; if (c[1] < miny) miny = c[1]; if (c[1] > maxy) maxy = c[1]; }
+    minx -= 0.02; maxx += 0.02; miny -= 0.015; maxy += 0.015;
+    const seen = new Set<string>();
+    for (const f of feats) {
+      const k = f.properties?.kind; const meta = POI_META[k]; if (!meta) continue;
+      const g = f.geometry; if (!g || g.type !== 'Point') continue;
+      const ll = g.coordinates as LngLat; if (ll[0] < minx || ll[0] > maxx || ll[1] < miny || ll[1] > maxy) continue;
+      let best = Infinity, bi = 0; for (let i = 0; i < navCoords.length; i++) { const d = haversineM(ll, navCoords[i]); if (d < best) { best = d; bi = i; } }
+      if (best > 650) continue;
+      const s = navCum[bi];
+      const aHead = bearingOf(navCoords[Math.max(0, bi - 1)], navCoords[Math.min(navCoords.length - 1, bi + 1)]);
+      const rel = ((bearingOf(navCoords[bi], ll) - aHead + 540) % 360) - 180;
+      const name = f.properties?.name || meta.label;
+      const key = k + ':' + name + '@' + Math.round(s / 200); if (seen.has(key)) continue; seen.add(key);
+      navEvents.push({ s, prio: (k === 'tank' && longRoute) ? 1 : meta.prio, icon: meta.icon, label: meta.label, name, side: best < 60 ? 0 : (rel >= 0 ? 1 : -1), perp: Math.round(best), kind: k, key });
+    }
+  }
+  navEvents.sort((a, b) => a.s - b.s);
+}
+/* menschliche, ruhige Lilly-Formulierung je Ereignis */
+function phrase(e: NavEvt, dM: number): { html: string; say: string } {
+  const dk = fmtKm(dM / 1000); const side = sideWord(e);
+  const close = dM < 180;
+  switch (e.kind) {
+    case 'lock': return close
+      ? { html: `🚪 <b>Schleuse ${E(e.name)}</b> — bitte Schleusung & Signal beachten.`, say: `Schleuse ${e.name}. Bitte Schleusung beachten.` }
+      : { html: `🚪 In etwa <b>${dk}</b> kommt die <b>Schleuse ${E(e.name)}</b>. Plane etwas Zeit ein.`, say: `In ${dk} kommt die Schleuse ${e.name}. Plane etwas Zeit ein.` };
+    case 'gelbe_welle': return { html: `⚠️ ${cap(side)} liegt ein <b>Community-Hinweis</b> (Gelbe Welle). Bitte aufmerksam fahren.`, say: `${side}: Community-Hinweis. Bitte aufmerksam fahren.` };
+    case 'wsp': case 'notfall': case 'medizin': return { html: `${e.icon} <b>${E(e.label)}</b> ${side} — im Bedarfsfall gut zu wissen.`, say: `${e.label} ${side}.` };
+    case 'hafen': return { html: `⚓ ${cap(side)} liegt <b>${E(e.name)}</b> — guter Hafen zum Anlegen.`, say: `${side}: Hafen ${e.name}.` };
+    case 'anleger': return { html: `🪢 ${cap(side)} liegt <b>${E(e.name)}</b> — Gastanleger.`, say: `${side}: Gastanleger ${e.name}.` };
+    case 'gastro': return { html: `🍽️ Auf deiner Route liegt <b>${E(e.name)}</b>. Gut für eine Pause am Wasser.`, say: `${e.name}. Gut für eine Pause am Wasser.` };
+    case 'badestelle': return { html: `🏖️ ${cap(side)} liegt eine <b>Badestelle</b>. Schön für eine kurze Pause.`, say: `${side}: Badestelle. Schön für eine kurze Pause.` };
+    case 'tank': return { html: `⛽ <b>Tankstelle</b> ${side} in <b>${dk}</b>.`, say: `Tankstelle ${side}, in ${dk}.` };
+    case 'sight': return { html: `🏰 ${cap(side)} liegt <b>${E(e.name)}</b> — sehenswert.`, say: `${side}: ${e.name}. Sehenswert.` };
+    case 'entsorgung': case 'werkstatt': case 'slip': case 'shop': return { html: `${e.icon} <b>${E(e.label)}</b> ${side}: ${E(e.name)}.`, say: `${e.label} ${side}.` };
+    default: return { html: `${e.icon} ${cap(side)}: <b>${E(e.name)}</b>.`, say: `${e.name} ${side}.` };
+  }
+}
 function navHint(s: number): { key: string; html: string; say: string } {
-  const r = lastRoute!; const restM = Math.max(0, navTotM - s);
-  const ahead = (r.lockPts || []).map(l => ({ name: l.name, dM: l.km * 1000 - s })).filter(l => l.dM > -60).sort((a, b) => a.dM - b.dM)[0];
-  if (ahead) {
-    if (ahead.dM < 140) return { key: 'lock0:' + ahead.name, html: `🔒 <b>Schleuse ${E(ahead.name)}</b> — Schleusung, Wartebereich & Signal beachten.`, say: `Schleuse ${ahead.name}. Bitte Schleusung beachten.` };
-    if (ahead.dM < 8000) { const dk = fmtKm(ahead.dM / 1000); return { key: 'lock:' + ahead.name + ':' + Math.round(ahead.dM / 300), html: `🔒 In <b>${dk}</b> Schleuse <b>${E(ahead.name)}</b>.`, say: `In ${dk}: Schleuse ${ahead.name}.` }; }
+  const restM = Math.max(0, navTotM - s);
+  const winM = (e: NavEvt) => e.prio === 1 ? (e.kind === 'lock' ? 2200 : 1800) : e.prio === 2 ? 1400 : 900;
+  const sayM = (e: NavEvt) => e.kind === 'lock' ? 1400 : e.prio === 1 ? 800 : e.prio === 2 ? 700 : 500;
+  let best: NavEvt | null = null; let bestD = 0;
+  for (const e of navEvents) { const d = e.s - s; if (d < -30 || d > winM(e)) continue; if (!best || e.prio < best.prio || (e.prio === best.prio && d < bestD)) { best = e; bestD = d; } }
+  if (best) {
+    const ph = phrase(best, bestD);
+    const near = bestD < sayM(best);
+    const say = near && !navEvtSaid.has(best.key) ? (navEvtSaid.add(best.key), ph.say) : '';
+    return { key: 'evt:' + best.key + ':' + (near ? 'n' : 'f'), html: ph.html, say };
   }
   if (restM < 120) return { key: 'ziel', html: `🏁 <b>Ziel erreicht.</b> Gute Fahrt gehabt!`, say: 'Ziel erreicht. Gute Fahrt.' };
   if (restM < 900) { const dk = fmtKm(restM / 1000); return { key: 'near', html: `🏁 Ziel in <b>${dk}</b> — Anlegen vorbereiten.`, say: `Ziel in ${dk}. Anlegen vorbereiten.` }; }
   const dk = fmtKm(restM / 1000);
   return { key: 'go:' + Math.round(restM / 500), html: `➡️ Dem Verlauf folgen · Ziel in <b>${dk}</b>.`, say: '' };
+}
+/* „Als Nächstes"-Liste (max 3, ausklappbar) — gedrosselt & nur bei Änderung neu gerendert (Performance) */
+function renderNext(s: number) {
+  const now = performance.now(); if (now - navListTs < 500) return; navListTs = now;
+  const panel = document.getElementById('nvNext'); const list = document.getElementById('nvNextList'); const more = document.getElementById('nvMore');
+  if (!panel || !list) return;
+  const up = navEvents.filter(e => e.s - s > -30);
+  if (!up.length) { if (!panel.hidden) { panel.hidden = true; lastNextSig = ''; } return; }
+  const show = navNextExpanded ? up.slice(0, 8) : up.slice(0, 3);
+  const sig = (navNextExpanded ? 'x' : 'c') + show.map(e => e.key + '#' + Math.round((e.s - s) / 100)).join('|');
+  if (sig === lastNextSig) return; lastNextSig = sig;
+  panel.hidden = false;
+  list.innerHTML = show.map(e => { const dM = Math.max(0, e.s - s); const sd = e.side === 0 ? '' : `<span class="nx-side">${e.side < 0 ? '◀ li' : 're ▶'}</span>`; return `<li class="nx-r p${e.prio}"><span class="nx-d">${fmtKm(dM / 1000)}</span><span class="nx-i">${e.icon}</span><span class="nx-n">${E(e.name)}</span>${sd}</li>`; }).join('');
+  if (more) more.hidden = up.length <= 3;
+}
+/* Sonnenuntergangs-Hinweis: nur wenn geplante Ankunft nach Sonnenuntergang liegt */
+function sunsetWarn(r: RouteResult): { html: string; say: string } | null {
+  const w = (window as any).__wlw; if (!w || !w.sunset) return null;
+  const m = /(\d{1,2}):(\d{2})/.exec(w.sunset); if (!m) return null;
+  const sunset = new Date(); sunset.setHours(+m[1], +m[2], 0, 0);
+  const arr = new Date(Date.now() + r.durationMin * 60000);
+  if (arr.getTime() <= sunset.getTime() + 5 * 60000)
+    return { html: `🌅 Sonnenuntergang um <b>${E(w.sunset)}</b> — dein Ziel erreichst du voraussichtlich vorher.`, say: `Sonnenuntergang um ${w.sunset}. Du erreichst dein Ziel vorher.` };
+  return { html: `🌅 Geplante Ankunft <b>nach Sonnenuntergang</b> (${E(w.sunset)}) — Lichterführung & Sicht einplanen.`, say: `Achtung: Ankunft nach Sonnenuntergang um ${w.sunset}. Lichterführung beachten.` };
+}
+/* Start-Hinweise (ELWIS, Sonnenuntergang) kurz halten, bevor Bewegungshinweise übernehmen */
+function showStartupNotices(notices: { html: string; say: string }[]) {
+  navHoldUntil = 0; if (!notices.length) return;
+  navHoldUntil = performance.now() + notices.length * 3200 + 200;
+  notices.forEach((n, i) => setTimeout(() => {
+    if (!navOn) return;
+    const el = document.getElementById('nvHint'); if (el) el.innerHTML = n.html;
+    const lil = document.getElementById('nvLilly'); if (lil) { lil.classList.remove('pulse'); void (lil as HTMLElement).offsetWidth; lil.classList.add('pulse'); }
+    speak(n.say);
+  }, i * 3200));
 }
 function navUpdate(pos: LngLat, brg: number, s: number, realSpeedKmh: number | null) {
   if (!lastRoute) return;
@@ -235,13 +349,16 @@ function navUpdate(pos: LngLat, brg: number, s: number, realSpeedKmh: number | n
   set('nvHead', Math.round((brg + 360) % 360) + '°');
   set('nvRest', fmtKm(restKm));
   set('nvEta', arr.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }));
-  const h = navHint(s);
-  if (h.key !== lastHintKey) {
-    lastHintKey = h.key;
-    const el = document.getElementById('nvHint'); if (el) el.innerHTML = h.html;
-    const lil = document.getElementById('nvLilly'); if (lil) { lil.classList.remove('pulse'); void (lil as HTMLElement).offsetWidth; lil.classList.add('pulse'); }
-    speak(h.say);
+  if (performance.now() >= navHoldUntil) {
+    const h = navHint(s);
+    if (h.key !== lastHintKey) {
+      lastHintKey = h.key;
+      const el = document.getElementById('nvHint'); if (el) el.innerHTML = h.html;
+      const lil = document.getElementById('nvLilly'); if (lil) { lil.classList.remove('pulse'); void (lil as HTMLElement).offsetWidth; lil.classList.add('pulse'); }
+      speak(h.say);
+    }
   }
+  renderNext(s);
   ensureBoat().setLngLat(pos).setRotation((brg + 360) % 360);
   const now = performance.now();
   if (now - navCamTs > 200) { navCamTs = now; API!.map.easeTo({ center: pos, bearing: (brg + 360) % 360, pitch: 56, duration: 260, essential: true } as any); }
@@ -281,16 +398,17 @@ function startNav(source: NavSource) {
   stopNav();
   navOn = true;
   navParam(lastRoute.coords); navSeg = 1; navS = 0; lastHintKey = ''; navPrevTs = 0; navCamTs = 0;
+  buildNavEvents();
   navSavedCam = { pitch: API.map.getPitch(), bearing: API.map.getBearing() };
   navUI(true);
   const start = navPosAt(0);
   ensureBoat().setLngLat(start.pos).setRotation((start.brg + 360) % 360).addTo(API.map);
   API.map.flyTo({ center: start.pos, zoom: 14, pitch: 56, bearing: (start.brg + 360) % 360, duration: 900, essential: true } as any);
+  const notices: { html: string; say: string }[] = [];
   const ew = elwisOnRoute(lastRoute);
-  setTimeout(() => {
-    if (!navOn) return;
-    if (ew.count > 0) { const el = document.getElementById('nvHint'); if (el) el.innerHTML = `⚠️ <b>${ew.count} ELWIS-Hinweis${ew.count > 1 ? 'e' : ''}</b> auf der Route — aufmerksam fahren.`; lastHintKey = 'elwis'; speak(`Achtung: ${ew.count} ELWIS Hinweis auf der Route.`); }
-  }, 1000);
+  if (ew.count > 0) notices.push({ html: `⚠️ <b>${ew.count} ELWIS-Hinweis${ew.count > 1 ? 'e' : ''}</b> auf der Route — aufmerksam fahren.`, say: `Achtung: ${ew.count} ELWIS Hinweis auf der Route.` });
+  const sun = sunsetWarn(lastRoute); if (sun) notices.push(sun);
+  showStartupNotices(notices);
   if (source === 'preview') {
     const durSec = Math.min(30, Math.max(12, navTotM / 220));
     navPlayMps = navTotM / durSec;
@@ -306,6 +424,7 @@ function stopNav() {
   if (boat) { try { boat.remove(); } catch { /* ignore */ } boat = null; }
   navUI(false);
   lastHintKey = ''; navPrevTs = 0;
+  navEvents = []; navEvtSaid.clear(); navHoldUntil = 0; navNextExpanded = false; lastNextSig = ''; navListTs = 0;
   if (API && navSavedCam) {
     if (captainOn) API.map.easeTo({ pitch: 56, bearing: navSavedCam.bearing, duration: 600 });
     else API.map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
@@ -447,6 +566,11 @@ function timeline(r: RouteResult, d: AlongData): string {
   nodes.push({ ic:'🏁', lab:'Ziel' });
   return `<div class="rt-tl">${nodes.map(n=>`<div class="rt-tl-n"><span class="rt-tl-ic">${n.ic}</span><span class="rt-tl-lab">${E(n.lab)}</span></div>`).join('<span class="rt-tl-sep">›</span>')}</div>`;
 }
+/* Einmaliger Entdeck-Hinweis: macht „Tour abspielen" + „Live" auffindbar (Usability), dismissbar */
+function tipNav(): string {
+  try { if (localStorage.getItem('wl3_tip_nav') === '1') return ''; } catch { /* ignore */ }
+  return `<div class="rt-tip" id="rtTip">✨ <b>Neu:</b> Tippe <b>▶ Tour abspielen</b> für eine 3D-Vorschau deiner Fahrt — oder <b>🧭 Live</b> mit GPS. <button type="button" data-act="tipclose" class="rt-tip-x" title="Hinweis schließen" aria-label="Hinweis schließen">×</button></div>`;
+}
 function renderSummary(r: RouteResult | null) {
   const el = $('routeSummary'); if (!el) return;
   lastRoute = r;
@@ -473,6 +597,7 @@ function renderSummary(r: RouteResult | null) {
       <span class="rt-sum-sub">bei ~9 km/h inkl. ~20 min/Schleuse · Luftlinie ${fmtKm(r.crowKm)}</span></div>
     ${timeline(r, d)}
     ${detour}${ew.html}${sunsetRow()}${renderAlong(d)}${locks}${conn}${snap}
+    ${tipNav()}
     <div class="rt-sum-acts">
       <button type="button" data-act="preview" class="rt-act rt-act-go" title="Tour als 3D-Vorschau abspielen — Boot fährt die Route ab">▶ Tour abspielen</button>
       <button type="button" data-act="live" class="rt-act" title="Live-Navigation mit GPS — Karte folgt deiner Fahrt (Fahrtrichtung oben)">🧭 Live</button>
@@ -602,6 +727,7 @@ export function initRoute(api: MapAPI, noticesProvider?: () => { notices: Notice
     const act = t.getAttribute('data-act');
     if (act === 'gpx') exportGpx(); else if (act === 'share') shareRoute();
     else if (act === 'preview') startNav('preview'); else if (act === 'live') startNav('live');
+    else if (act === 'tipclose') { try { localStorage.setItem('wl3_tip_nav', '1'); } catch { /* ignore */ } document.getElementById('rtTip')?.remove(); }
   });
   /* Geteilter Deep-Link ?a=lng,lat&b=lng,lat → Auto-Route */
   try {
