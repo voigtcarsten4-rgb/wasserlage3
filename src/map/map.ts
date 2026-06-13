@@ -69,6 +69,14 @@ export async function initMap(container: string): Promise<MapAPI> {
   map.addSource('seamarks', { type:'raster', tiles:['https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png'], tileSize:256, attribution:'© OpenSeaMap' });
   map.addLayer({ id:'seamarks', type:'raster', source:'seamarks', paint:{ 'raster-opacity':0.85 }, minzoom:10 });
 
+  /* Himmel/Horizont · nur bei geneigter Captain-View (Pitch>0) sichtbar, top-down unsichtbar */
+  try {
+    (map as any).setSky?.({
+      'sky-color': '#8ec9ea', 'horizon-color': '#d7eef7', 'fog-color': '#eef7fb',
+      'sky-horizon-blend': 0.6, 'horizon-fog-blend': 0.55, 'fog-ground-blend': 0.4, 'atmosphere-blend': 0.7,
+    });
+  } catch { /* ältere MapLibre ohne Sky-Support */ }
+
   /* ── Datenhaltung: kuratiert (B/BB) sofort, weitere Länder lazy nach Viewport ── */
   const allFeatures: any[] = [];
   const haveIds = new Set<string>();
@@ -167,6 +175,7 @@ export async function initMap(container: string): Promise<MapAPI> {
   map.on('mouseenter','poi-cluster',()=>{ map.getCanvas().style.cursor='pointer'; });
   map.on('mouseleave','poi-cluster',()=>{ map.getCanvas().style.cursor=''; });
 
+  (window as any).__wl3map = map;   // Debug-Handle (Kamera-/Pitch-Verifikation), wie __wlw
   return {
     map, activeKinds: active,
     setKinds(on) { active.clear(); on.forEach(k=>active.add(k)); applyFilter(); },

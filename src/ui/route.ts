@@ -81,6 +81,60 @@ function stopFlow() {
   try { API?.map.setPaintProperty('wlroute-glow', 'line-opacity', 0.35); } catch { /* ignore */ }
 }
 
+/* ── Captain-View · native MapLibre-3D-Kamera (Pitch-Neigung + Fahrtrichtung-oben) ── */
+let captainOn = (() => { try { return localStorage.getItem('wl3_captain') === '1'; } catch { return false; } })();
+function bearingOf(a: LngLat, b: LngLat): number {
+  const toR = Math.PI/180, toD = 180/Math.PI;
+  const y = Math.sin((b[0]-a[0])*toR) * Math.cos(b[1]*toR);
+  const x = Math.cos(a[1]*toR)*Math.sin(b[1]*toR) - Math.sin(a[1]*toR)*Math.cos(b[1]*toR)*Math.cos((b[0]-a[0])*toR);
+  return (Math.atan2(y, x)*toD + 360) % 360;
+}
+function routeBearing(): number {
+  if (lastRoute && lastRoute.coords.length >= 2) { const c = lastRoute.coords; return bearingOf(c[0], c[c.length-1]); }
+  if (A && B) return bearingOf(A, B);
+  return API ? API.map.getBearing() : 0;
+}
+function updateViewBtn() {
+  const btn = $('rtView'); if (!btn) return;
+  btn.textContent = captainOn ? '🗺 Karte' : '🧭 Captain-View';
+  btn.classList.toggle('on', captainOn);
+  btn.setAttribute('aria-pressed', captainOn ? 'true' : 'false');
+}
+function applyCaptain(animate: boolean) {
+  if (!API) return;
+  const dur = (animate && !reduceMotion()) ? 900 : 0;
+  API.map.easeTo({ pitch: captainOn ? 56 : 0, bearing: captainOn ? routeBearing() : 0, duration: dur });
+  updateViewBtn();
+}
+/* GPS Course-Up: solange Captain-View an ist UND das Gerät einen echten Heading liefert (Handy in Bewegung),
+   dreht sich die Karte sanft in die tatsächliche Fahrtrichtung — wie Apple-Navigation. Auf Desktop/ohne Heading
+   bleibt es bei Route-oben (kein Eingriff). Ehrlich: nur bei vorhandenem GPS-Kurs. */
+let courseWatch = 0; let lastCourseTs = 0;
+function startCourseUp() {
+  if (courseWatch || !navigator.geolocation || reduceMotion()) return;
+  try {
+    courseWatch = navigator.geolocation.watchPosition(p => {
+      if (!API || !captainOn) return;
+      const h = p.coords.heading, sp = p.coords.speed;
+      if (h == null || isNaN(h) || (sp != null && sp < 0.5)) return;     // nur bei echtem Kurs/Bewegung
+      const now = performance.now(); if (now - lastCourseTs < 700) return; // sanft throttlen
+      lastCourseTs = now;
+      API.map.easeTo({ bearing: h, pitch: 56, duration: 650 });
+    }, () => {}, { enableHighAccuracy: true, maximumAge: 1500, timeout: 12000 });
+  } catch { courseWatch = 0; }
+}
+function stopCourseUp() {
+  if (courseWatch && navigator.geolocation) { try { navigator.geolocation.clearWatch(courseWatch); } catch { /* ignore */ } }
+  courseWatch = 0;
+}
+function toggleCaptain() {
+  captainOn = !captainOn;
+  try { localStorage.setItem('wl3_captain', captainOn ? '1' : '0'); } catch { /* ignore */ }
+  applyCaptain(true);
+  if (captainOn) startCourseUp(); else stopCourseUp();
+  flashHint(captainOn ? '🧭 Captain-View: 3D, Fahrtrichtung oben — bei aktivem GPS-Kurs dreht die Karte mit.' : '🗺 Klassische Kartenansicht (Norden oben).');
+}
+
 function marker(slot: 'A' | 'B', ll: LngLat) {
   const color = slot === 'A' ? '#27c08d' : '#D9B14D';
   const m = new maplibregl.Marker({ color }).setLngLat(ll).addTo(API!.map);
@@ -105,9 +159,12 @@ async function compute() {
     if (!r) { renderSummary(null); setRouteGeom([], []); }
     else {
       setRouteGeom(r.waterSegs, r.connectorSegs);
+      lastRoute = r;
       const b = r.coords.reduce((acc, c) => [Math.min(acc[0], c[0]), Math.min(acc[1], c[1]), Math.max(acc[2], c[0]), Math.max(acc[3], c[1])],
         [180, 90, -180, -90]);
-      API!.map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 70, duration: 1200 });
+      const fb: any = { padding: captainOn ? { top: 150, bottom: 90, left: 60, right: 60 } : 70, duration: 1200 };
+      if (captainOn) { fb.pitch = 56; fb.bearing = bearingOf(r.coords[0], r.coords[r.coords.length - 1]); }
+      API!.map.fitBounds([[b[0], b[1]], [b[2], b[3]]], fb);
       renderSummary(r);
     }
   } catch (e) { console.error('Routing-Fehler', e); renderSummary(null); }
@@ -357,6 +414,9 @@ export function initRoute(api: MapAPI, noticesProvider?: () => { notices: Notice
   $('rtGeo')?.addEventListener('click', () => tryGeo(false));
   $('rtClear')?.addEventListener('click', clearRoute);
   $('rtNet')?.addEventListener('click', toggleNet);
+  $('rtView')?.addEventListener('click', toggleCaptain);
+  updateViewBtn();
+  if (captainOn) { try { API.map.once('idle', () => applyCaptain(false)); } catch { applyCaptain(false); } }
   $('routeSummary')?.addEventListener('click', (e) => {
     const t = (e.target as HTMLElement).closest('[data-act]'); if (!t) return;
     const act = t.getAttribute('data-act');

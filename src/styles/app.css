@@ -641,6 +641,12 @@ html.is-offline .badge:not(.err){opacity:.5}
 
 /* ═══ Wasserstraßennetz-Toggle ═══ */
 #rtNet.on{background:rgba(63,195,201,.32);border-color:var(--cyan,#3FC3C9);color:#eafaff;font-weight:700}
+/* Captain-View aktiv: warmer Gold-Cyan-Akzent + dezenter Schein (3D/Fahrtrichtung-oben an) */
+#rtView{transition:background .18s cubic-bezier(.2,.8,.2,1),box-shadow .25s cubic-bezier(.2,.8,.2,1),color .18s}
+#rtView.on{background:linear-gradient(135deg,rgba(217,177,77,.30),rgba(63,195,201,.26));
+  border-color:var(--gold,#D9B14D);color:#fff;font-weight:700;
+  box-shadow:0 0 0 1px rgba(217,177,77,.35),0 6px 18px -6px rgba(217,177,77,.45)}
+@media (prefers-reduced-motion: reduce){#rtView{transition:none}}
 
 /* === Scroll-Spy Navigation + Premium-Mikrointeraktionen (Reifegrad-Pass) === */
 .tn-links a { position: relative; transition: color .25s ease; }
