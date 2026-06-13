@@ -14,9 +14,10 @@ import { initMelden } from './ui/melden';
 import { initTouren } from './ui/touren';
 import { initTourenDE } from './ui/touren_de';
 import { initEventsDE } from './ui/events_de';
+import { initFavorites } from './ui/favorites';
 import { initNele, type NeleState } from './ui/nele';
 import { initDestination } from './ui/destination';
-import { initRoute } from './ui/route';
+import { initRoute, setRouteDestination } from './ui/route';
 import { initVision } from './ui/vision';
 import { initEarlyAccess } from './ui/earlyaccess';
 import { initGamification } from './ui/gamification';
@@ -190,6 +191,7 @@ async function boot() {
   initTouren();
   initTourenDE();
   initEventsDE();
+  initFavorites();
   initChecklists();
   applyAudience(); window.addEventListener('wl3-mode', applyAudience);
   initMelden(()=>setTimeout(initCommunity, 1200));
@@ -229,6 +231,7 @@ async function boot() {
     }).catch(e => console.error('Explorer-Daten nicht ladbar', e));
     initDestination(api);
     initRoute(api, () => doc);
+    (window as any).__wl3routeTo = (ll: [number, number], name?: string) => { try { setRouteDestination(ll, name); } catch { /* */ } };
     initVision(api);
   } else {
     fetch(`${import.meta.env.BASE_URL}data/pois.geojson`).then(r=>r.json()).then(fc => initExplorer(fc.features, ()=>{}));

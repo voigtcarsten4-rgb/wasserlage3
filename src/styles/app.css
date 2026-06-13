@@ -1159,3 +1159,20 @@ html[data-tod="night"] .wl-src a,html[data-tod="dusk"] .wl-src a{color:var(--cya
 .wl-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(14px);background:rgba(10,37,64,.92);color:#eafaff;padding:10px 18px;border-radius:999px;font:600 13px var(--font-b);z-index:1100;opacity:0;transition:opacity .25s,transform .25s;box-shadow:0 12px 30px -10px rgba(0,0,0,.5)}
 .wl-toast.in{opacity:1;transform:translateX(-50%) translateY(0)}
 @media(max-width:560px){.wl-panel{width:100vw;padding:46px 16px 28px}}
+
+/* ── Favoriten-Ansicht + Drawer-Map-Action (Milestone 21) ── */
+.wl-act-go{background:linear-gradient(135deg,rgba(63,195,201,.34),rgba(217,177,77,.22))!important;border-color:var(--cyan,#3FC3C9)!important;font-weight:700}
+.wl-act:disabled{opacity:.45;cursor:not-allowed}
+.fav-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.fav-card{display:flex;align-items:center;justify-content:space-between;gap:10px;border-radius:var(--r-lg,16px);padding:12px 14px;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.fav-card:hover{transform:translateY(-2px);box-shadow:0 14px 32px -18px rgba(10,37,64,.5)}
+.fav-card:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.fav-main{display:flex;align-items:center;gap:10px;min-width:0}
+.fav-ic{font-size:20px;flex:0 0 auto}
+.fav-tx{min-width:0}
+.fav-tx b{display:block;color:var(--ink);font:700 14px/1.2 var(--font-h);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fav-sub{font-size:11.5px;color:var(--ink2)}
+.fav-x{flex:0 0 auto;width:34px;height:34px;border-radius:50%;border:1px solid var(--glass-brd);background:rgba(217,177,77,.14);color:var(--gold,#D9B14D);font-size:17px;cursor:pointer}
+.fav-x:hover{border-color:var(--gold)}
+.fav-empty{font-size:13px;color:var(--ink2);line-height:1.55;background:rgba(255,255,255,.04);border:1px dashed var(--glass-brd);border-radius:var(--r-lg,16px);padding:18px}
+@media(max-width:560px){.fav-grid{grid-template-columns:1fr}}

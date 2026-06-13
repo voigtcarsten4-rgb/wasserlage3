@@ -9,9 +9,14 @@ const E = (s: any) => { const d = document.createElement('div'); d.textContent =
 const BL: Record<string, string> = { SH: 'Schleswig-Holstein', HH: 'Hamburg', NI: 'Niedersachsen', HB: 'Bremen', MV: 'Meckl.-Vorpommern', BB: 'Brandenburg', BE: 'Berlin', ST: 'Sachsen-Anhalt', SN: 'Sachsen', TH: 'Thüringen', NW: 'NRW', HE: 'Hessen', RP: 'Rheinland-Pfalz', SL: 'Saarland', BW: 'Baden-Württ.', BY: 'Bayern' };
 const MC: Record<string, string> = { sup: '🛶 SUP/Kajak', hausboot: '🛥️ Hausboot', charter: '⛵ Yacht/Segeln', familie: '👨‍👩‍👧 Familie', tourist: '📸 Tourist', b2b: '🏢 Branche', angler: '🎣 Angler' };
 const FAV = 'wl3_favs';
-const favs = (): string[] => { try { return JSON.parse(localStorage.getItem(FAV) || '[]'); } catch { return []; } };
-const isFav = (k: string) => favs().includes(k);
-function toggleFav(k: string): boolean { const f = favs(); const i = f.indexOf(k); if (i >= 0) f.splice(i, 1); else f.push(k); try { localStorage.setItem(FAV, JSON.stringify(f)); } catch { /* */ } return i < 0; }
+export const favsList = (): string[] => { try { return JSON.parse(localStorage.getItem(FAV) || '[]'); } catch { return []; } };
+const isFav = (k: string) => favsList().includes(k);
+function dispatchFav() { try { window.dispatchEvent(new CustomEvent('wl3-fav')); } catch { /* */ } }
+function toggleFav(k: string): boolean { const f = favsList(); const i = f.indexOf(k); if (i >= 0) f.splice(i, 1); else f.push(k); try { localStorage.setItem(FAV, JSON.stringify(f)); } catch { /* */ } dispatchFav(); return i < 0; }
+export function unfav(k: string) { const f = favsList().filter(x => x !== k); try { localStorage.setItem(FAV, JSON.stringify(f)); } catch { /* */ } dispatchFav(); }
+function scrollToMap() { document.getElementById('karte')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+function flyToMap(coord: [number, number]) { const m: any = (window as any).__wl3map; if (m) { try { m.flyTo({ center: coord, zoom: 12.5, speed: 1.3, essential: true }); } catch { /* */ } } close(); scrollToMap(); flash('Karte fliegt zum Ort'); }
+function routeTo(coord: [number, number], name?: string) { const f: any = (window as any).__wl3routeTo; if (f) { try { f(coord, name); } catch { /* */ } } close(); scrollToMap(); flash('Ziel gesetzt — Route wird geplant'); }
 
 let drawer: HTMLElement | null = null;
 function flash(msg: string) {
@@ -35,8 +40,11 @@ function lillyWind(): string {
   const wa = windAdvice(currentMode().id, w);
   return `<div class="wl-lilly"><span class="wl-lav">🧭</span><span><b>Lilly heute · ${E(currentMode().label)}:</b> ${wa.html}</span></div>`;
 }
-function actions(shareTitle: string, favKey: string): string {
-  return `<div class="wl-acts"><button class="wl-act" data-fav="${E(favKey)}">${isFav(favKey) ? '★ Gemerkt' : '☆ Merken'}</button><button class="wl-act" data-share>📤 Teilen</button><span class="wl-soon">GPX/PDF &amp; Navigation in Vorbereitung</span></div>`;
+function actions(shareTitle: string, favKey: string, coord?: [number, number]): string {
+  const mapBtns = coord
+    ? `<button class="wl-act wl-act-go" data-map="${coord[0]},${coord[1]}">📍 Auf Karte zeigen</button><button class="wl-act" data-route="${coord[0]},${coord[1]}" data-rn="${E(shareTitle)}">🧭 Route hierher</button>`
+    : `<button class="wl-act" disabled title="Koordinaten noch nicht hinterlegt">📍 Auf Karte (n/a)</button>`;
+  return `<div class="wl-acts">${mapBtns}<button class="wl-act" data-fav="${E(favKey)}">${isFav(favKey) ? '★ Gemerkt' : '☆ Merken'}</button><button class="wl-act" data-share>📤 Teilen</button></div><div class="wl-soon">${coord ? 'Karte fliegt zum Anker · ' : 'Koordinaten noch nicht hinterlegt · '}GPX/PDF in Vorbereitung</div>`;
 }
 function show(html: string, shareTitle: string) {
   ensureDrawer();
@@ -48,6 +56,10 @@ function show(html: string, shareTitle: string) {
     const url = location.origin + location.pathname; const text = `${shareTitle} · Wasserlage`;
     try { if ((navigator as any).share) await (navigator as any).share({ title: shareTitle, text, url }); else { await navigator.clipboard.writeText(text + ' — ' + url); flash('Link kopiert'); } } catch { /* abgebrochen */ }
   });
+  const mp = b?.querySelector('[data-map]') as HTMLElement | null;
+  mp?.addEventListener('click', () => { const p = mp.dataset.map!.split(',').map(Number); flyToMap([p[0], p[1]]); });
+  const rt = b?.querySelector('[data-route]') as HTMLElement | null;
+  rt?.addEventListener('click', () => { const p = rt.dataset.route!.split(',').map(Number); routeTo([p[0], p[1]], rt.dataset.rn); });
   drawer!.hidden = false; requestAnimationFrame(() => drawer!.classList.add('in')); document.body.style.overflow = 'hidden';
 }
 
@@ -59,6 +71,7 @@ export function openRevier(t: any) {
   const pois = (t.pois || []).map((p: string) => `<li>⭐ ${E(p)}</li>`).join('');
   const schutz = (t.schutzgebiete || []).length ? `<div class="wl-line">🌿 ${t.schutzgebiete.map(E).join(' · ')}</div>` : '';
   const umt = t.umtragen && t.umtragen !== 'keine' ? `<div class="wl-warn">⚠️ Umtragen: ${E(t.umtragen)}</div>` : '';
+  const wp = (t.waypoints && t.waypoints.length) ? '<h3 class="wl-h">Wegpunktkette · ' + (t.etappen || t.waypoints.length) + ' Etappen' + ((t.schleusen && t.schleusen !== 0) ? ' · ' + E(t.schleusen) + ' Schleusen' : '') + '</h3><ul class="wl-poi">' + t.waypoints.map((w: any) => '<li>📍 ' + E(w.name) + '</li>').join('') + '</ul><div class="wl-soon">Status: ' + E(t.routeGeometryStatus || 'anchor') + ' — echte Wegpunkte, noch keine durchgehende Linie</div>' : '';
   show(`<div class="wl-kicker">${land} · ${E(t.revier)}</div>
     <h2 class="wl-title">${E(t.name)} <span class="td-prio ${String(t.importprio).toLowerCase()}">${E(t.importprio)}</span></h2>
     <div class="wl-tags">${tags}</div>
@@ -67,8 +80,9 @@ export function openRevier(t: any) {
     ${pois ? `<h3 class="wl-h">Highlights</h3><ul class="wl-poi">${pois}</ul>` : ''}
     ${schutz}${umt}
     <div class="wl-sec">🛟 ${E(t.sicherheit)}</div>
+    ${wp}
     <div class="wl-src">Quelle: <a href="${E(t.quelle)}" target="_blank" rel="noopener">${E(t.quelle_label)} ↗</a> · Qualität ${E(t.quellenqualitaet)} · Geo: ${E(t.coordsStatus)}</div>
-    ${actions(t.name, 'revier:' + t.id)}`, t.name);
+    ${actions(t.name, 'revier:' + t.id, t.start_coord)}`, t.name);
 }
 
 export function openEvent(e: any) {
@@ -82,5 +96,5 @@ export function openEvent(e: any) {
     <div class="wl-sec">${E(e.aktivitaeten)}</div>
     <div class="wl-lilly"><span class="wl-lav">🧭</span><span><b>Lilly-Tipp:</b> ${E(e.lilly)}</span></div>
     <div class="wl-src">Quelle: <a href="${E(e.link)}" target="_blank" rel="noopener">${E(e.quelle_label)} ↗</a> · Qualität ${E(e.quellenqualitaet)} · Geo: ${E(e.coordsStatus || 'n/a')}</div>
-    ${actions(e.name, 'event:' + e.id)}`, e.name);
+    ${actions(e.name, 'event:' + e.id, e.coord)}`, e.name);
 }
