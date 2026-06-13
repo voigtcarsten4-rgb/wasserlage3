@@ -14,6 +14,7 @@ import { initTouren } from './ui/touren';
 import { initNele, type NeleState } from './ui/nele';
 import { initDestination } from './ui/destination';
 import { initRoute } from './ui/route';
+import { initVision } from './ui/vision';
 import { initEarlyAccess } from './ui/earlyaccess';
 import { initGamification } from './ui/gamification';
 import { initAcademy } from './ui/academy';
@@ -211,6 +212,7 @@ async function boot() {
     }).catch(e => console.error('Explorer-Daten nicht ladbar', e));
     initDestination(api);
     initRoute(api, () => doc);
+    initVision(api);
   } else {
     fetch(`${import.meta.env.BASE_URL}data/pois.geojson`).then(r=>r.json()).then(fc => initExplorer(fc.features, ()=>{}));
   }
