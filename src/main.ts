@@ -125,10 +125,23 @@ function initSafety() {
   });
 }
 
+function initReveal() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!('IntersectionObserver' in window)) return;
+  const els = Array.from(document.querySelectorAll('.sect, .map-stage, .dest-stage, main.dash > .panel, .b2b-grid > .panel'));
+  els.forEach(e => e.classList.add('reveal'));
+  const io = new IntersectionObserver((ents) => {
+    ents.forEach((x, i) => { if (x.isIntersecting) { (x.target as HTMLElement).style.transitionDelay = (Math.min(i, 4) * 60) + 'ms'; x.target.classList.add('in'); io.unobserve(x.target); } });
+  }, { threshold: 0.08, rootMargin: '0px 0px -6% 0px' });
+  els.forEach(e => io.observe(e));
+  setTimeout(() => els.forEach(e => e.classList.add('in')), 3500); // Sicherheitsnetz
+}
+
 async function boot() {
   applyTod();
   initPWA();
   initSafety();
+  initReveal();
   initCommunity();
   initTouren();
   initMelden(()=>setTimeout(initCommunity, 1200));
