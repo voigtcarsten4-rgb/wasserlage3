@@ -45,18 +45,22 @@ export async function initWater3D() {
 
   /* ── Himmel ── */
   const skyU = { top:{value:new THREE.Color()}, horizon:{value:new THREE.Color()},
-    sun:{value:new THREE.Color()}, sunX:{value:0.0}, sunY:{value:0.4}, haze:{value:0.0}, moon:{value:0.0} };
+    sun:{value:new THREE.Color()}, sunX:{value:0.0}, sunY:{value:0.4}, haze:{value:0.0}, moon:{value:0.0}, t:{value:0.0} };
   const sky = new THREE.Mesh(new THREE.SphereGeometry(140, 32, 16),
     new THREE.ShaderMaterial({ side:THREE.BackSide, depthWrite:false, uniforms:skyU,
       vertexShader:`varying vec3 vd; void main(){ vd=normalize(position); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-      fragmentShader:`uniform vec3 top,horizon,sun; uniform float sunX,sunY,haze,moon; varying vec3 vd;
-        void main(){ float y=clamp(vd.y*0.5+0.5,0.0,1.0);
+      fragmentShader:`uniform vec3 top,horizon,sun; uniform float sunX,sunY,haze,moon,t; varying vec3 vd;
+        void main(){ vec3 n=normalize(vd); float y=clamp(n.y*0.5+0.5,0.0,1.0);
           vec3 col=mix(horizon, top, smoothstep(0.46,0.94,y));
           vec3 sd=normalize(vec3(sunX*0.9, max(sunY,0.005), -1.0));
-          float d=max(dot(normalize(vd), sd),0.0);
-          float disk = moon>0.5 ? pow(d,900.0)*0.8 : pow(d,300.0)*1.0;
-          col += sun*disk;
-          col += sun*pow(d,7.0)*(moon>0.5?0.10:0.30);
+          float d=max(dot(n, sd),0.0);
+          float disk = moon>0.5 ? pow(d,900.0)*0.85 : pow(d,300.0)*1.05;
+          col += sun*disk;                                  /* Scheibe */
+          col += sun*pow(d,7.0)*(moon>0.5?0.10:0.32);       /* weicher Hof */
+          /* strahlender Sonnenschein: langsam rotierende Strahlen */
+          float ang = atan(n.x - sd.x, n.y - sd.y);
+          float rays = pow(d, 16.0) * (0.55 + 0.45*sin(ang*18.0 + t*0.5));
+          col += sun * rays * (moon>0.5?0.05:0.16);
           col = mix(col, horizon, haze*0.55);
           gl_FragColor=vec4(col,1.0); }`,
     }));
@@ -71,30 +75,29 @@ export async function initWater3D() {
     vertexShader:`uniform float t,storm; varying float h; varying vec3 wp; varying float depth;
       void main(){ vec3 p=position;
         float amp=1.0+storm*1.7;
-        float w=(sin(p.x*0.09+t*0.85)*0.30 + sin(p.y*0.12-t*0.55)*0.26
-               + sin((p.x+p.y)*0.055+t*0.42)*0.42 + sin(p.x*0.34+t*(1.5+storm))*0.09
-               + sin(p.y*0.5 - t*1.2)*0.05)*amp;
-        /* Flachwasser ruhiger (nahe Ufer = großes p.y) */
-        depth = clamp(-p.y/100.0, 0.0, 1.0);            /* 0 = Ufer/flach … 1 = Tiefsee/Horizont */
-        w *= mix(0.35, 1.0, depth);
+        /* Dünungs-Wellen rollen AUF DEN BETRACHTER ZU (Phase entlang p.y, läuft mit -t nach vorn).
+           Kammlinien ~parallel zum Ufer, leicht versetzt — kein gleichfrequentes Gitter. */
+        float w =  sin(p.y*0.150 - t*1.05 + sin(p.x*0.03)*0.6) * 0.46
+                 + sin(p.y*0.305 - t*1.55 + sin(p.x*0.05)*0.5) * 0.22
+                 + sin(p.y*0.560 - t*2.05 + p.x*0.045)        * 0.10
+                 + sin(p.x*0.060 - p.y*0.02 - t*0.50)         * 0.13;   /* sanfte Quer-Dünung */
+        w *= amp;
+        depth = clamp(-p.y/100.0, 0.0, 1.0);              /* 0 = nah/flach … 1 = fern/tief */
+        w *= mix(0.5, 1.0, depth);
         p.z += w; h=w; wp=p;
         gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0); }`,
     fragmentShader:`uniform float t,storm,sunX,sunElev,moon;
       uniform vec3 sand,shallow,deep,skyTop,skyHor,sun; varying float h; varying vec3 wp; varying float depth;
-      /* günstige Kaustik aus überlagerten Sinus-Zellen */
-      float caustic(vec2 uv){ vec2 p=uv; float v=0.0;
-        for(int i=0;i<3;i++){ p = p*1.7 + vec2(t*0.12, -t*0.09);
-          v += abs(sin(p.x)+cos(p.y*1.1)); }
-        return pow(max(0.0, 1.6 - v*0.5), 2.2); }
       void main(){
         /* Tiefen-Farbe: Türkis (flach/nah) → Tiefblau (fern) */
         vec3 base = mix(shallow, deep, smoothstep(0.03, 0.70, depth));
         /* feiner Sandschimmer NUR im unmittelbaren Vordergrund */
         float nearMask = 1.0 - smoothstep(0.0, 0.13, depth);
         base = mix(base, sand, nearMask*0.16);
-        /* Kaustik: subtile türkis-weiße Lichtnetze, nur nah */
-        base += vec3(0.55,0.92,0.88) * caustic(wp.xy*0.13) * nearMask * 0.15 * (1.0-storm*0.7);
-        /* Fresnel dezent — Wasser behält seine Farbe (nicht ausgewaschen) */
+        /* organische Schaumkronen aus Wellenhöhe — KEIN Gitter */
+        float foam = smoothstep(0.42, 0.95, h);
+        base += vec3(0.72,0.93,0.96) * foam * 0.13 * (1.0 - storm*0.3);
+        /* Fresnel dezent — Wasser behält seine Farbe */
         float fres = pow(depth, 1.7);
         vec3 refl = mix(skyHor, skyTop, depth*0.4);
         vec3 c = mix(base, refl, fres*0.30*(1.0-storm*0.4));
@@ -107,6 +110,25 @@ export async function initWater3D() {
   });
   const water = new THREE.Mesh(geo, mat);
   water.rotation.x = -Math.PI/2; water.position.y = -0.6; scene.add(water);
+
+  /* ── Schiff am Horizont (Silhouette, zieht langsam vorbei) ── */
+  const ship = new THREE.Group();
+  const hull = new THREE.Shape();
+  hull.moveTo(-3.2,0); hull.lineTo(3.2,0); hull.lineTo(2.4,1.0); hull.lineTo(-2.6,1.0); hull.closePath();
+  const shipMat = new THREE.MeshBasicMaterial({ color:0x12222e, transparent:true, opacity:0.85 });
+  ship.add(new THREE.Mesh(new THREE.ShapeGeometry(hull), shipMat));
+  const cabin = new THREE.Mesh(new THREE.PlaneGeometry(2.4,1.5), shipMat); cabin.position.set(-0.3,1.6,0.01); ship.add(cabin);
+  const mast = new THREE.Mesh(new THREE.PlaneGeometry(0.14,2.6), shipMat); mast.position.set(1.7,1.8,0.01); ship.add(mast);
+  ship.position.set(-26, 0.15, -90); scene.add(ship);
+
+  /* ── Vögel (V-Silhouetten, flattern & gleiten) ── */
+  const birds: any[] = [];
+  for (let i=0;i<5;i++){
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9),3));
+    const ln = new THREE.Line(g, new THREE.LineBasicMaterial({ color:0x223240, transparent:true, opacity:0 }));
+    ln.userData = { x:-34+Math.random()*68, y:13+Math.random()*12, z:-50-Math.random()*38, sp:0.5+Math.random()*0.6, fl:5+Math.random()*4, ph:Math.random()*7, sc:0.8+Math.random()*0.9 };
+    scene.add(ln); birds.push(ln);
+  }
 
   /* ── Sterne (nur nachts) ── */
   const sn = 240, spos = new Float32Array(sn*3);
@@ -143,7 +165,25 @@ export async function initWater3D() {
     watU.t.value=t; watU.storm.value=storm; watU.sunX.value=sunX; watU.sunElev.value=sunElev; watU.moon.value=moon;
     watU.sand.value.setRGB(...cur.sand); watU.shallow.value.setRGB(...cur.shallow); watU.deep.value.setRGB(...cur.deep);
     watU.skyTop.value.setRGB(...cur.top); watU.skyHor.value.setRGB(...cur.horizon); watU.sun.value.setRGB(...cur.sun);
-    starMat.opacity += (((document.documentElement.dataset.tod==='night')?0.9:0) - starMat.opacity)*0.02;
+    skyU.t.value = t;
+    const night = document.documentElement.dataset.tod === 'night';
+    const dayl = night ? 0.0 : 1.0;
+    /* Sterne funkeln (nur nachts) */
+    starMat.opacity += ((night ? 0.9*(0.78+0.22*Math.sin(t*2.5)) : 0) - starMat.opacity)*0.04;
+    /* Schiff am Horizont: langsam ziehen + leicht schaukeln */
+    ship.position.x += 0.018 + storm*0.012; if (ship.position.x > 34) ship.position.x = -34;
+    ship.position.y = 0.15 + Math.sin(t*0.5)*(0.10+storm*0.20);
+    ship.rotation.z = Math.sin(t*0.5)*0.02;
+    (shipMat as any).opacity += ((0.5 + 0.35*dayl) - (shipMat as any).opacity)*0.02;
+    /* Vögel: Flügelschlag + Gleiten */
+    for (const b of birds){ const u=b.userData; u.x += u.sp*0.03; if (u.x>40) u.x=-40;
+      const flap = Math.sin(t*u.fl + u.ph)*0.9*u.sc;
+      const pos = b.geometry.attributes.position.array as Float32Array;
+      pos[0]=-1.1*u.sc; pos[1]=flap; pos[3]=0; pos[4]=0.20*u.sc; pos[6]=1.1*u.sc; pos[7]=flap;
+      b.geometry.attributes.position.needsUpdate = true;
+      b.position.set(u.x, u.y + Math.sin(t*0.3+u.ph)*0.6, u.z);
+      (b.material as any).opacity += ((0.42*dayl) - (b.material as any).opacity)*0.02;
+    }
     /* dezentes Bootsschaukeln */
     cam.position.x += (px*1.4 - cam.position.x)*0.03;
     cam.position.y = 3.0 + Math.sin(t*0.4)*(0.06+storm*0.10);
