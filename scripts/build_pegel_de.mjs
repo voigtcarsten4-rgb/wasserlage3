@@ -1,36 +1,43 @@
-// Holt echte Pegelonline-UUIDs für große deutsche Wasserstraßen und ergänzt pegel.json um eine DE-Gruppe.
+// Generiert public/data/pegel.json: breite, bundesweite Auswahl schifffahrtsrelevanter WSV-Pegel.
+// Quelle: Pegelonline (WSV) — read-only. Bevorzugt Stationen mit amtlicher Zustands-Einstufung.
 import fs from 'fs';
-const url='https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations.json';
-const res=await fetch(url); const all=await res.json();
-console.log('Pegelonline Stationen gesamt:', all.length);
-// Wunschliste: bekannte Großschifffahrts-Pegel je Strom (name-Match auf shortname/longname, water)
-const want=[
-  ['Rhein','MAXAU'],['Rhein','MANNHEIM'],['Rhein','MAINZ'],['Rhein','KAUB'],['Rhein','KOBLENZ'],['Rhein','KÖLN'],['Rhein','DUISBURG-RUHRORT'],['Rhein','EMMERICH'],
-  ['Donau','KELHEIM'],['Donau','PFELLING'],['Donau','HOFKIRCHEN'],['Donau','PASSAU'],
-  ['Elbe','DRESDEN'],['Elbe','TORGAU'],['Elbe','WITTENBERGE'],['Elbe','MAGDEBURG-STROMBRÜCKE'],['Elbe','HAMBURG'],
-  ['Main','WÜRZBURG'],['Main','FRANKFURT'],['Main','SCHWEINFURT'],
-  ['Weser','HANN.MÜNDEN'],['Weser','MINDEN'],['Weser','BREMEN'],['Weser','INTSCHEDE'],
-  ['Mosel','TRIER'],['Mosel','COCHEM'],['Neckar','HEIDELBERG'],['Neckar','PLOCHINGEN'],
-  ['Mittellandkanal','MINDEN'],['Saar','SAARBRÜCKEN'],
-];
-function find(water, key){
-  const w=water.toLowerCase();
-  let c=all.filter(s=> (s.water?.shortname||s.water?.longname||'').toLowerCase().includes(w));
-  c=c.filter(s=> (s.longname||'').toUpperCase().includes(key) || (s.shortname||'').toUpperCase().includes(key));
-  // bevorzuge mit longname
-  return c[0]||null;
+const base = 'https://www.pegelonline.wsv.de/webservices/rest-api/v2';
+const all = await fetch(base + '/stations.json?timeseries=W&includeTimeseries=true&includeCurrentMeasurement=true').then(r => r.json());
+
+// nach Gewässer gruppieren
+const byWater = {};
+for (const s of all) {
+  const ts = (s.timeseries || []).find(t => t.shortname === 'W');
+  const cm = ts && ts.currentMeasurement;
+  if (!cm) continue; // nur Stationen mit aktueller W-Messung
+  const w = (s.water?.longname || '—').trim();
+  (byWater[w] = byWater[w] || []).push({ uuid: s.uuid, shortname: s.shortname, km: s.km ?? null,
+    hasState: !!(cm.stateMnwMhw && cm.stateMnwMhw !== 'unknown') });
 }
-const seen=new Set(); const stations=[];
-for(const [water,key] of want){ const s=find(water,key);
-  if(s && !seen.has(s.uuid)){ seen.add(s.uuid);
-    stations.push({name: (s.longname||s.shortname).replace(/\b([A-ZÄÖÜ])([A-ZÄÖÜ.-]+)/g,(m,a,b)=>a+b.toLowerCase()), water, uuid:s.uuid}); }
-  else if(!s) console.log('  ! nicht gefunden:', water, key);
+
+// Nur schifffahrtsrelevante Großgewässer (≥3 Pegel) — auto deckt das Bundesnetz ab
+const PER_WATER = 6;
+const groups = [];
+let total = 0;
+for (const w of Object.keys(byWater)) {
+  let list = byWater[w];
+  if (list.length < 3) continue;
+  // gleichmäßig über die km-Achse ausdünnen; Stationen mit Status bevorzugen
+  list.sort((a, b) => (a.km ?? 0) - (b.km ?? 0));
+  let pick = list;
+  if (list.length > PER_WATER) {
+    const step = list.length / PER_WATER;
+    pick = Array.from({ length: PER_WATER }, (_, i) => list[Math.floor(i * step)]);
+    // Duplikate vermeiden
+    pick = [...new Map(pick.map(p => [p.uuid, p])).values()];
+  }
+  groups.push({ water: w, stations: pick.map(p => ({ uuid: p.uuid, shortname: p.shortname, km: p.km })) });
+  total += pick.length;
 }
-console.log('gefunden:', stations.length);
-const pj=JSON.parse(fs.readFileSync(new URL('../public/data/pegel.json',import.meta.url)));
-pj.groups = pj.groups.filter(g=>g.title!=='Deutschland · Ströme');
-pj.groups.push({ icon:'🇩🇪', title:'Deutschland · Ströme', stations });
-pj.generated_at = new Date().toISOString().slice(0,10);
-pj.source = 'Pegelonline WSV · BB kuratiert (2.0) + DE-Ströme (Live-UUIDs)';
-fs.writeFileSync(new URL('../public/data/pegel.json',import.meta.url), JSON.stringify(pj,null,1));
-console.log('pegel.json aktualisiert · Gruppen:', pj.groups.map(g=>g.title+' ('+g.stations.length+')').join(', '));
+// größte Gewässer zuerst
+groups.sort((a, b) => b.stations.length - a.stations.length);
+
+const out = { generated_at: new Date().toISOString(), source: 'Pegelonline (WSV)', groups };
+fs.writeFileSync('public/data/pegel.json', JSON.stringify(out));
+console.log('Gewässer-Gruppen:', groups.length, '· Pegel gesamt:', total);
+console.log('Top:', groups.slice(0, 12).map(g => `${g.water}(${g.stations.length})`).join(', '));
