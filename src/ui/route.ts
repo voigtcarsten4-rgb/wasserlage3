@@ -77,8 +77,8 @@ async function compute() {
 }
 
 /* ELWIS-Sperrungen, die auf der berechneten Route liegen (Wasserstraße oder Schleuse) */
-function elwisOnRoute(r: RouteResult): string {
-  const doc = getNotices ? getNotices() : null; if (!doc) return '';
+function elwisOnRoute(r: RouteResult): { html: string; count: number } {
+  const doc = getNotices ? getNotices() : null; if (!doc) return { html: '', count: 0 };
   const ww = r.waterways.map(s => s.toLowerCase());
   const lk = r.locks.map(s => s.toLowerCase());
   const norm = (s: string) => (s || '').toLowerCase();
@@ -87,10 +87,10 @@ function elwisOnRoute(r: RouteResult): string {
     return ww.some(x => x.length > 4 && (w.includes(x) || x.includes(w) && w.length > 4))
       || lk.some(name => name.length > 5 && txt.includes(name.replace(/^schleuse\s+/, '')));
   });
-  if (!hits.length) return `<div class="rt-sum-row" style="color:var(--ok)">✅ Auf deiner Route aktuell keine ernsten ELWIS-Meldungen.</div>`;
+  if (!hits.length) return { html: `<div class="rt-sum-row" style="color:var(--ok)">✅ Auf deiner Route aktuell keine ernsten ELWIS-Meldungen.</div>`, count: 0 };
   const ic = (t: string) => t === 'red' ? '🔴' : '🟠';
   const rows = hits.slice(0, 4).map(n => `<li>${ic(n.type)} <b>${E(n.waterway)}</b>: ${E(String(n.description || n.type_label).slice(0, 90))}${n.detail_url ? ` <a href="${E(n.detail_url)}" target="_blank" rel="noopener">ELWIS ›</a>` : ''}</li>`).join('');
-  return `<div class="rt-elwis"><b>⚠️ ${hits.length} ELWIS-Meldung${hits.length > 1 ? 'en' : ''} auf deiner Route:</b><ul>${rows}</ul></div>`;
+  return { html: `<div class="rt-elwis"><b>⚠️ ${hits.length} ELWIS-Meldung${hits.length > 1 ? 'en' : ''} auf deiner Route:</b><ul>${rows}</ul></div>`, count: hits.length };
 }
 /* ── Nav 4D · Alles entlang der Route (POIs im Korridor + Sonnenuntergang) ── */
 const ALONG_CATS: { key:string; label:string; icon:string; kinds:string[] }[] = [
@@ -113,12 +113,14 @@ function sunsetRow(): string {
   return (w && w.sunset)
     ? `<div class="rt-sum-row">🌅 Sonnenuntergang heute <b>${E(w.sunset)}</b> — Ankunft vor der Dämmerung einplanen.</div>` : '';
 }
+interface AlongData { total: number; cats: { key:string; label:string; icon:string; count:number; top:string[] }[]; sights: string[]; }
 /* POIs im ~1,5-km-Korridor um die Route, nach Kategorie gebündelt (Quelle: geladene Karten-POIs) */
-function poisAlongRoute(r: RouteResult): string {
-  if (!API) return '';
+function alongData(r: RouteResult): AlongData {
+  const empty: AlongData = { total: 0, cats: [], sights: [] };
+  if (!API) return empty;
   let feats: any[] = [];
-  try { feats = API.features() || []; } catch { return ''; }
-  const co = r.coords; if (!feats.length || co.length < 2) return '';
+  try { feats = API.features() || []; } catch { return empty; }
+  const co = r.coords; if (!feats.length || co.length < 2) return empty;
   let minx=180, miny=90, maxx=-180, maxy=-90;
   for (const c of co){ if(c[0]<minx)minx=c[0]; if(c[0]>maxx)maxx=c[0]; if(c[1]<miny)miny=c[1]; if(c[1]>maxy)maxy=c[1]; }
   minx-=0.03; maxx+=0.03; miny-=0.02; maxy+=0.02;             // ~2 km Marge
@@ -139,15 +141,39 @@ function poisAlongRoute(r: RouteResult): string {
     if (!buckets[cat.key]) buckets[cat.key] = [];
     buckets[cat.key].push({ name: f.properties?.name || cat.label, dist: best });
   }
-  let total = 0; const parts: string[] = [];
+  let total = 0; const cats: AlongData['cats'] = [];
   for (const cat of ALONG_CATS){
     const arr = buckets[cat.key]; if (!arr || !arr.length) continue;
     arr.sort((a,b)=>a.dist-b.dist); total += arr.length;
-    const top = arr.slice(0,3).map(x=>E(x.name)).join(' · ');
-    parts.push(`<li><span class="rt-al-ic">${cat.icon}</span><b>${arr.length}</b> ${E(cat.label)}<span class="rt-al-top">${top}${arr.length>3?' …':''}</span></li>`);
+    cats.push({ key: cat.key, label: cat.label, icon: cat.icon, count: arr.length, top: arr.slice(0,3).map(x=>x.name) });
   }
-  if (!total) return '';
-  return `<div class="rt-along"><div class="rt-along-h">🧭 Entlang deiner Route <span class="rt-al-n">${total} Stopps im 1,5-km-Korridor</span></div><ul class="rt-along-list">${parts.join('')}</ul></div>`;
+  const sights = buckets['sight'] ? buckets['sight'].slice().sort((a,b)=>a.dist-b.dist).map(x=>x.name) : [];
+  return { total, cats, sights };
+}
+function renderAlong(d: AlongData): string {
+  if (!d.total) return '';
+  const parts = d.cats.map(c => `<li><span class="rt-al-ic">${c.icon}</span><b>${c.count}</b> ${E(c.label)}<span class="rt-al-top">${c.top.map(E).join(' · ')}${c.count>3?' …':''}</span></li>`);
+  return `<div class="rt-along"><div class="rt-along-h">🧭 Entlang deiner Route <span class="rt-al-n">${d.total} Stopps im 1,5-km-Korridor</span></div><ul class="rt-along-list">${parts.join('')}</ul></div>`;
+}
+/* Lilly-Lotsin · ein Satz, der die Route zusammenfasst (inkl. ehrlicher Datenlücken-Hinweis) */
+function lillyLine(r: RouteResult, d: AlongData, elwisN: number): string {
+  const hin = elwisN > 0 ? `${elwisN} Hinweis${elwisN>1?'e':''}` : 'keine ernsten Hinweise';
+  const high = d.sights.slice(0,2);
+  const highTxt = high.length ? ` Unterwegs lohnen sich <b>${high.map(E).join('</b> &amp; <b>')}</b>.` : '';
+  const connTxt = r.connectors > 0
+    ? ` <span class="rt-lilly-warn">⚠️ ${r.connectors} Abschnitt${r.connectors>1?'e':''} sind <b>Datenlücken</b> (gestrichelt): dort fehlt im offenen Kartennetz eine saubere Wasserverbindung — bitte als grobe Orientierung verstehen, nicht als Navigation.</span>` : '';
+  return `<div class="rt-lilly"><span class="rt-lilly-av">🧭</span><div class="rt-lilly-txt"><b>Lilly:</b> Diese Route ist <b>${fmtKm(r.distanceKm)}</b>, dauert ca. <b>${fmtMin(r.durationMin)}</b>, ${hin} und <b>${d.total}</b> mögliche Stopps.${highTxt}${connTxt}</div></div>`;
+}
+/* Kompakte Routen-Timeline: Start → Schleusen → Highlight → Liegeplätze → Sonnenuntergang → Ziel */
+function timeline(r: RouteResult, d: AlongData): string {
+  const w = (window as any).__wlw;
+  const nodes: { ic:string; lab:string }[] = [{ ic:'🟢', lab:'Start' }];
+  if (r.locks.length) nodes.push({ ic:'🚪', lab:`${r.locks.length} Schleuse${r.locks.length>1?'n':''}` });
+  const sight = d.sights[0]; if (sight) nodes.push({ ic:'🏰', lab: sight.length>20?sight.slice(0,18)+'…':sight });
+  const liegen = d.cats.find(c=>c.key==='liegen'); if (liegen) nodes.push({ ic:'⚓', lab:`${liegen.count} Liegeplätze` });
+  if (w && w.sunset) nodes.push({ ic:'🌅', lab: w.sunset });
+  nodes.push({ ic:'🏁', lab:'Ziel' });
+  return `<div class="rt-tl">${nodes.map(n=>`<div class="rt-tl-n"><span class="rt-tl-ic">${n.ic}</span><span class="rt-tl-lab">${E(n.lab)}</span></div>`).join('<span class="rt-tl-sep">›</span>')}</div>`;
 }
 function renderSummary(r: RouteResult | null) {
   const el = $('routeSummary'); if (!el) return;
@@ -158,6 +184,7 @@ function renderSummary(r: RouteResult | null) {
       <p class="rt-sum-note">Start oder Ziel liegt zu weit von einer gemappten schiffbaren Wasserstraße entfernt, oder die Reviere sind nicht durchgehend verbunden. Setze die Punkte näher ans Wasser oder prüfe ein anderes Revier.</p>`;
     return;
   }
+  const d = alongData(r); const ew = elwisOnRoute(r);
   const locks = r.locks.length
     ? `<div class="rt-sum-row">🚪 <b>${r.locks.length} Schleuse${r.locks.length > 1 ? 'n' : ''}</b> <span>${r.locks.map(E).join(' · ')}</span></div>` : '';
   const conn = r.connectors
@@ -169,9 +196,11 @@ function renderSummary(r: RouteResult | null) {
     ? `<div class="rt-sum-row warn">↩️ Großer Umweg (${fmtKm(r.distanceKm)} für ${fmtKm(r.crowKm)} Luftlinie): eine direkte Wasserverbindung in diesem Revier ist noch nicht vollständig erfasst. Die angezeigte Strecke kann unrealistisch lang sein — bitte mit Seekarte/ELWIS gegenprüfen.</div>` : '';
   el.innerHTML = `
     <div class="rt-sum-head">🚤 Route auf dem Wasser <span class="rt-beta">Beta</span></div>
+    ${lillyLine(r, d, ew.count)}
     <div class="rt-sum-big"${detourBad ? ' style="opacity:.6"' : ''}><b>${fmtKm(r.distanceKm)}</b> · ~${fmtMin(r.durationMin)}
       <span class="rt-sum-sub">bei ~9 km/h inkl. ~20 min/Schleuse · Luftlinie ${fmtKm(r.crowKm)}</span></div>
-    ${detour}${elwisOnRoute(r)}${sunsetRow()}${poisAlongRoute(r)}${locks}${conn}${snap}
+    ${timeline(r, d)}
+    ${detour}${ew.html}${sunsetRow()}${renderAlong(d)}${locks}${conn}${snap}
     <div class="rt-sum-acts">
       <button type="button" data-act="share" class="rt-act" title="Route als Link teilen">📤 Route teilen</button>
       <button type="button" data-act="gpx" class="rt-act" title="Als GPX für Kartenplotter/Navi-App exportieren">⬇️ GPX</button>

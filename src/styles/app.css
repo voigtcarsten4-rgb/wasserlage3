@@ -790,3 +790,17 @@ html.is-offline .badge:not(.err){opacity:.5}
 .rt-al-ic{font-size:1rem;flex:0 0 auto}
 .rt-al-top{opacity:.62;font-size:.78rem;margin-left:auto;text-align:right;max-width:58%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:520px){ .rt-al-top{display:none} }
+
+
+/* ═══ Lilly-Routenzusammenfassung + Routen-Timeline (Nav 4D) ═══ */
+.rt-lilly{display:flex;gap:9px;align-items:flex-start;margin:8px 0 10px;padding:9px 11px;border-radius:12px;
+  background:linear-gradient(135deg,rgba(63,195,201,.14),rgba(20,48,73,.10));border:1px solid rgba(63,195,201,.30)}
+.rt-lilly-av{font-size:1.25rem;line-height:1.2;flex:0 0 auto}
+.rt-lilly-txt{font-size:.9rem;line-height:1.38}
+.rt-lilly-warn{display:block;margin-top:4px;font-size:.82rem;color:#b26a00}
+.rt-tl{display:flex;align-items:flex-start;gap:4px;overflow-x:auto;padding:8px 0 6px;margin:2px 0 6px;-webkit-overflow-scrolling:touch}
+.rt-tl-n{display:flex;flex-direction:column;align-items:center;gap:2px;flex:0 0 auto;min-width:52px;text-align:center}
+.rt-tl-ic{font-size:1.05rem}
+.rt-tl-lab{font-size:.66rem;line-height:1.12;opacity:.85;max-width:74px}
+.rt-tl-sep{flex:0 0 auto;color:rgba(63,195,201,.75);font-weight:700;font-size:.8rem;align-self:center}
+.rt-tl::-webkit-scrollbar{height:0}
