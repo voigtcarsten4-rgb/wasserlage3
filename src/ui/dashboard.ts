@@ -128,6 +128,15 @@ export function renderPegel(gauges: Gauge[], ft: {stand:string; havel_min_cm:num
   let nLo = 0, nHi = 0, nKnown = 0;
   for (const g of gauges) { const s = waterState(g.currentMeasurement); if (s) { nKnown++; if (s.cls === 'lo') nLo++; else if (s.cls === 'hi') nHi++; } }
   badge('bdgPegel', true, `● Live · Pegelonline · ${gauges.length} Stationen`);
+  /* Bundesweiter Pegel-Puls als Hero-Chip (konsolidiertes „Heute auf dem Wasser") */
+  const hc = document.getElementById('heroChips');
+  if (hc) {
+    hc.querySelector('.chip-peg')?.remove();
+    if (nHi || nLo) {
+      const txt = `📏 ${nHi ? `${nHi}× Hochwasser` : ''}${nHi && nLo ? ' · ' : ''}${nLo ? `${nLo}× Niedrigwasser` : ''} bundesweit`;
+      hc.insertAdjacentHTML('beforeend', `<span class="chip chip-peg">${txt}</span>`);
+    }
+  }
   /* repräsentative Auswahl: je Gewässer bis zu 2 Pegel — auffällige (Hoch-/Niedrigwasser) bevorzugt */
   const byWater: Record<string, Gauge[]> = {};
   for (const g of gauges) { const w = g.water?.shortname || '—'; (byWater[w] = byWater[w] || []).push(g); }
