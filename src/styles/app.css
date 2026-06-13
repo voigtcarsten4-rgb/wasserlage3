@@ -853,3 +853,13 @@ html.is-offline .badge:not(.err){opacity:.5}
 .chal-rewards b{flex:1 0 100%;margin-bottom:2px}
 .chal-rewards span{color:var(--ink2)}
 @media(max-width:680px){ .chal-grid{grid-template-columns:repeat(2,1fr)} }
+
+
+/* ═══ Reviere im Bild · fotorealistische Leonardo-Aufnahmen ═══ */
+.revier-shots{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:6px 0 16px}
+.rv-shot{position:relative;margin:0;border-radius:14px;overflow:hidden;aspect-ratio:16/9;box-shadow:0 8px 24px rgba(4,18,31,.16)}
+.rv-shot img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s ease}
+.rv-shot:hover img{transform:scale(1.05)}
+.rv-shot figcaption{position:absolute;left:0;right:0;bottom:0;padding:20px 12px 9px;color:#fff;font-size:.82rem;font-weight:600;
+  background:linear-gradient(to top,rgba(4,18,31,.80),transparent)}
+@media(max-width:760px){ .revier-shots{grid-template-columns:1fr 1fr} .rv-shot:first-child{grid-column:1/-1} }
