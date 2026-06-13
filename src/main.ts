@@ -12,6 +12,7 @@ import { initMelden } from './ui/melden';
 import { initTouren } from './ui/touren';
 import { initLilly, type LillyState } from './ui/lilly';
 import { initDestination } from './ui/destination';
+import { initRoute } from './ui/route';
 import { initEarlyAccess } from './ui/earlyaccess';
 import { initGamification } from './ui/gamification';
 import { initPWA } from './lib/pwa';
@@ -156,6 +157,7 @@ async function boot() {
       initExplorer(fc.features, (lng,lat) => api.map.flyTo({ center:[lng,lat], zoom: 13.5, speed: 1.4 }));
     }).catch(e => console.error('Explorer-Daten nicht ladbar', e));
     initDestination(api);
+    initRoute(api);
   } else {
     fetch(`${import.meta.env.BASE_URL}data/pois.geojson`).then(r=>r.json()).then(fc => initExplorer(fc.features, ()=>{}));
   }

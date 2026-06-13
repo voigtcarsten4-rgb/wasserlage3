@@ -1,3 +1,4 @@
 node_modules/
 dist/
 dist-deployed/
+scripts/_osm_cache.json

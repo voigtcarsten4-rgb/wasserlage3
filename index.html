@@ -105,7 +105,20 @@
         <option value="">🇩🇪 Deutschland — Bundesland wählen</option>
       </select>
     </div>
+    <div class="route-bar glass" id="routeBar">
+      <div class="rt-pts">
+        <button class="rt-pt" data-slot="A" type="button"><b class="rt-badge a">A</b><span id="rtAtxt">Start setzen</span></button>
+        <span class="rt-arrow">⟶</span>
+        <button class="rt-pt" data-slot="B" type="button"><b class="rt-badge b">B</b><span id="rtBtxt">Ziel setzen</span></button>
+      </div>
+      <div class="rt-acts">
+        <button id="rtGeo" type="button">📍 Mein Standort</button>
+        <button id="rtClear" type="button" hidden>✕ Route</button>
+      </div>
+      <p class="rt-hint" id="rtHint">🚤 Wasser-Route (Beta): tippe Start (A) & Ziel (B) auf die Karte — Wasserlage routet entlang schiffbarer Wege.</p>
+    </div>
     <div id="map" role="application" aria-label="Gewässerkarte Deutschland"></div>
+    <div class="route-summary glass" id="routeSummary" hidden></div>
     <div class="map-legend glass" id="legend"></div>
     <div class="map-attrib-extra">Seezeichen © OpenSeaMap · POI-Daten: Wasserlage (Quelle & Stand je Popup) · Weitere Reviere laden automatisch beim Bewegen der Karte</div>
   </section>

@@ -3,6 +3,7 @@
  * EHRLICH: Das ist kein Turn-by-Turn-Wasser-Routing (braucht Routing-Graph) — es ist der
  * destinationszentrierte Einstieg + „Was liegt an meinem Ziel". Grundstein, kein Fake-Nav. */
 import type { MapAPI } from '../map/map';
+import { setRouteDestination } from './route';
 const E = (s:any) => { const d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; };
 const CATS: [string,string,string[]][] = [
   ['⚓','Hafen / Liegeplatz',['hafen','gelbe_welle','anleger']], ['🍽️','Restaurant',['gastro']],
@@ -58,10 +59,12 @@ export function initDestination(api: MapAPI) {
       <p class="dest-lilly">⚓ <b>Lilly:</b> Ich habe dein Ziel auf der Karte markiert. Das liegt in der Nähe:</p>
       <ul class="dest-near">${rows}</ul>
       <div class="dest-actions">
-        <a class="dest-go" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" rel="noopener">🧭 Anfahrt (Land) öffnen</a>
+        <button class="dest-go water" id="destWater">🚤 Route auf dem Wasser</button>
+        <a class="dest-go" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" rel="noopener">🧭 Anfahrt (Land)</a>
         <button class="dest-go ghost" id="destClose">Schließen</button>
       </div>
       <p class="dest-note">Hinweis: Wasserlage zeigt dir Ziele & Versorgung am Wasser. Eine verbindliche Wasser-Routenführung (Fahrrinne, Schleusen-Timing) ist in Entwicklung — verbindlich bleibt heute ELWIS.</p>`;
     document.getElementById('destClose')?.addEventListener('click',()=>{card.hidden=true;});
+    document.getElementById('destWater')?.addEventListener('click',()=>{ try { setRouteDestination([lng,lat], p.name); } catch(e){ console.error(e); } });
   }
 }
