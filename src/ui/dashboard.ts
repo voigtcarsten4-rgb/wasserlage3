@@ -114,8 +114,12 @@ export function renderPegel(gauges: Gauge[], ft: {stand:string; havel_min_cm:num
   const el = $('pegel');
   if (!gauges.length) { badge('bdgPegel',false,'nicht erreichbar'); el.innerHTML='<div class="row"><span class="ic">📡</span><div>Pegelonline gerade nicht erreichbar.</div></div>'; return; }
   badge('bdgPegel',true,`● Live · Pegelonline · ${gauges.length} Stationen`);
-  const KEY = ['Spandau','Potsdam','Mühlendamm','Köpenick','Neue Mühle','Frankfurt','Kleinmachnow','Brandenburg'];
-  const top = gauges.filter(g=>KEY.some(k=>g.shortname.toLowerCase().includes(k.toLowerCase()))).slice(0,8);
+  /* repräsentative Auswahl: je Gewässer bis zu 2 Pegel (BB zuerst, dann DE-Ströme) — keine fragile Namensliste */
+  const byWater: Record<string, Gauge[]> = {};
+  for (const g of gauges) { const w = g.water?.shortname || '—'; (byWater[w] = byWater[w] || []).push(g); }
+  const top: Gauge[] = [];
+  for (const w of Object.keys(byWater)) top.push(...byWater[w].slice(0, 2));
+  top.splice(20);
   el.innerHTML = top.map(g=>`<div class="kv"><span>${E(g.shortname)} <small style="color:var(--ink2)">${E(g.water?.shortname??'')}</small></span>
       <b>${g.currentMeasurement?Math.round(g.currentMeasurement.value)+' cm':'—'}</b></div>`).join('')
     + (ft?`<div class="kv"><span>⚓ Fahrrinne Havel (min)</span><b>${(ft.havel_min_cm/100).toFixed(2).replace('.',',')} m</b></div>

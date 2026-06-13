@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-06-10",
- "source": "Pegelonline WSV (UUIDs aus Wasserlage 2.0, verifiziert 10.06.2026)",
+ "generated_at": "2026-06-13",
+ "source": "Pegelonline WSV · BB kuratiert (2.0) + DE-Ströme (Live-UUIDs)",
  "groups": [
   {
    "icon": "🏞️",
@@ -158,6 +158,142 @@
      "name": "Zehdenick",
      "water": "Obere Havel",
      "uuid": "721d7dbf-c947-405c-8dba-e672a091f4c0"
+    }
+   ]
+  },
+  {
+   "icon": "🇩🇪",
+   "title": "Deutschland · Ströme",
+   "stations": [
+    {
+     "name": "Maxau",
+     "water": "Rhein",
+     "uuid": "b6c6d5c8-e2d5-4469-8dd8-fa972ef7eaea"
+    },
+    {
+     "name": "Mannheim",
+     "water": "Rhein",
+     "uuid": "57090802-c51a-4d09-8340-b4453cd0e1f5"
+    },
+    {
+     "name": "Mainz",
+     "water": "Rhein",
+     "uuid": "a37a9aa3-45e9-4d90-9df6-109f3a28a5af"
+    },
+    {
+     "name": "Kaub",
+     "water": "Rhein",
+     "uuid": "1d26e504-7f9e-480a-b52c-5932be6549ab"
+    },
+    {
+     "name": "Koblenz",
+     "water": "Rhein",
+     "uuid": "4c7d796a-39f2-4f26-97a9-3aad01713e29"
+    },
+    {
+     "name": "Köln",
+     "water": "Rhein",
+     "uuid": "a6ee8177-107b-47dd-bcfd-30960ccc6e9c"
+    },
+    {
+     "name": "Duisburg-ruhrort",
+     "water": "Rhein",
+     "uuid": "c0f51e35-d0e8-4318-afaf-c5fcbc29f4c1"
+    },
+    {
+     "name": "Emmerich",
+     "water": "Rhein",
+     "uuid": "9598e4cb-0849-401e-bba0-689234b27644"
+    },
+    {
+     "name": "Kelheimwinzer",
+     "water": "Donau",
+     "uuid": "c9409937-b794-4b69-b36b-38467daab09a"
+    },
+    {
+     "name": "Pfelling",
+     "water": "Donau",
+     "uuid": "7fe63a95-8ff6-4cff-9a29-a124136516b5"
+    },
+    {
+     "name": "Hofkirchen",
+     "water": "Donau",
+     "uuid": "616dd98e-816d-4e17-b8cd-57b163dbc8a2"
+    },
+    {
+     "name": "Passau Ilzstadt",
+     "water": "Donau",
+     "uuid": "33ceb441-23bc-4ca6-9fcd-ac35d41ef117"
+    },
+    {
+     "name": "Dresden",
+     "water": "Elbe",
+     "uuid": "70272185-b2b3-4178-96b8-43bea330dcae"
+    },
+    {
+     "name": "Torgau",
+     "water": "Elbe",
+     "uuid": "83bbaedb-5d81-4bc6-9f66-3bd700c99c1f"
+    },
+    {
+     "name": "Wittenberge",
+     "water": "Elbe",
+     "uuid": "cbf3cd49-91bd-49cc-8926-ccc6c0e7eca4"
+    },
+    {
+     "name": "Magdeburg-strombrücke",
+     "water": "Elbe",
+     "uuid": "ccccb57f-a2f9-4183-ae88-5710d3afaefd"
+    },
+    {
+     "name": "Hamburg-harburg",
+     "water": "Elbe",
+     "uuid": "706e5110-c5e2-4915-9989-c071fcb492ec"
+    },
+    {
+     "name": "Würzburg",
+     "water": "Main",
+     "uuid": "915d76e1-3bf9-4e37-9a9a-4d144cd771cc"
+    },
+    {
+     "name": "Frankfurt Osthafen",
+     "water": "Main",
+     "uuid": "66ff3eb4-513b-478b-abd2-2f5126ea66fd"
+    },
+    {
+     "name": "Schweinfurt Neuer Hafen",
+     "water": "Main",
+     "uuid": "42ecae60-eeb3-4b41-9721-46b3f12d04b8"
+    },
+    {
+     "name": "Intschede",
+     "water": "Weser",
+     "uuid": "78d69798-f956-4222-8d2b-f9f630fb9e36"
+    },
+    {
+     "name": "Trier Up",
+     "water": "Mosel",
+     "uuid": "3bec53ca-444e-4014-a7b0-07b3591e954b"
+    },
+    {
+     "name": "Cochem",
+     "water": "Mosel",
+     "uuid": "768df4e9-ed5a-4141-901b-e25ac404d559"
+    },
+    {
+     "name": "Heidelberg Up",
+     "water": "Neckar",
+     "uuid": "827b2685-47ec-44df-a90f-980f5e0c1591"
+    },
+    {
+     "name": "Plochingen",
+     "water": "Neckar",
+     "uuid": "be7ce40e-5fff-42df-8386-b42694ca86da"
+    },
+    {
+     "name": "Saarbrücken Up",
+     "water": "Saar",
+     "uuid": "e0bbdb2e-e4e9-4a85-aa42-8db7885e5593"
     }
    ]
   }
