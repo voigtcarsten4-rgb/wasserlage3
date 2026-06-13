@@ -398,7 +398,8 @@ def main():
     t0 = time.time()
     coords, adj, is_vertex, lock_nodes, name_at = build()
     edges = contract(coords, adj, is_vertex, lock_nodes, name_at)
-    edges = edges + connect_gaps(edges)
+    edges = edges + connect_gaps(edges)                            # kurze gerichtete Luecken (<=3200 m)
+    edges = edges + connect_gaps(edges, gap_m=8000, min_cos=0.60)  # Grossseen: lange, streng gerichtete Fahrrinnen-Querung
     edges = edges + apply_seeds(edges, SEEDS)
     edges = edges + connect_components(edges)
     keep = largest_component(edges)
