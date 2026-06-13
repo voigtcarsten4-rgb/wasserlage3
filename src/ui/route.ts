@@ -31,10 +31,16 @@ function ensureLayers(map: maplibregl.Map) {
   map.addLayer({ id: 'wlroute-line', type: 'line', source: 'wlroute',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
     paint: { 'line-color': '#3FC3C9', 'line-width': 4.5 } });
+  /* Connector-Überbrückungen (Netzlücken) — gestrichelt & amber: KEIN exakter Wasserweg */
+  map.addSource('wlroute-conn', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } as any });
+  map.addLayer({ id: 'wlroute-conn', type: 'line', source: 'wlroute-conn',
+    layout: { 'line-cap': 'butt', 'line-join': 'round' },
+    paint: { 'line-color': '#E8B54D', 'line-width': 3, 'line-opacity': 0.95, 'line-dasharray': [1.4, 1.4] } });
 }
-function setLine(coords: LngLat[]) {
-  const src = API!.map.getSource('wlroute') as maplibregl.GeoJSONSource | undefined;
-  src?.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: {} } as any);
+function setRouteGeom(water: LngLat[][], conn: LngLat[][]) {
+  const ml = (segs: LngLat[][]) => ({ type: 'Feature', geometry: { type: 'MultiLineString', coordinates: segs }, properties: {} });
+  (API!.map.getSource('wlroute') as maplibregl.GeoJSONSource | undefined)?.setData(ml(water) as any);
+  (API!.map.getSource('wlroute-conn') as maplibregl.GeoJSONSource | undefined)?.setData(ml(conn) as any);
 }
 
 function marker(slot: 'A' | 'B', ll: LngLat) {
@@ -58,9 +64,9 @@ async function compute() {
   ensureLayers(API!.map);
   try {
     const r = await route(A, B);
-    if (!r) { renderSummary(null); setLine([]); }
+    if (!r) { renderSummary(null); setRouteGeom([], []); }
     else {
-      setLine(r.coords);
+      setRouteGeom(r.waterSegs, r.connectorSegs);
       const b = r.coords.reduce((acc, c) => [Math.min(acc[0], c[0]), Math.min(acc[1], c[1]), Math.max(acc[2], c[0]), Math.max(acc[3], c[1])],
         [180, 90, -180, -90]);
       API!.map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 70, duration: 1200 });
@@ -155,7 +161,7 @@ function renderSummary(r: RouteResult | null) {
   const locks = r.locks.length
     ? `<div class="rt-sum-row">🚪 <b>${r.locks.length} Schleuse${r.locks.length > 1 ? 'n' : ''}</b> <span>${r.locks.map(E).join(' · ')}</span></div>` : '';
   const conn = r.connectors
-    ? `<div class="rt-sum-row warn">⚠️ ${r.connectors} verbindende${r.connectors > 1 ? '' : 'r'} See-/Fahrrinnenabschnitt — Verlauf vereinfacht, Fahrrinne vor Ort prüfen.</div>` : '';
+    ? `<div class="rt-sum-row warn">⚠️ ${r.connectors} <b>gestrichelte</b> Verbindung${r.connectors > 1 ? 'en' : ''} überbrücken Lücken im Wasserwege-Netz — können über Land/offenes Wasser verlaufen und sind <b>kein exakter Wasserweg</b>. Dort Seekarte &amp; ELWIS prüfen.</div>` : '';
   const snap = (r.fromSnapM > 250 || r.toSnapM > 250)
     ? `<div class="rt-sum-row">📍 Einstieg ans Wasser: ~${r.fromSnapM} m ab Start · ~${r.toSnapM} m ab Ziel</div>` : '';
   const detourBad = r.detour > 4 && r.distanceKm > 25;
@@ -176,7 +182,7 @@ function renderSummary(r: RouteResult | null) {
 function clearRoute() {
   A = B = null; pick = null;
   mA?.remove(); mB?.remove(); mA = mB = null;
-  setLine([]);
+  setRouteGeom([], []);
   const s = $('routeSummary'); if (s) s.hidden = true;
   const at = $('rtAtxt'); if (at) at.textContent = 'Start setzen';
   const bt = $('rtBtxt'); if (bt) bt.textContent = 'Ziel setzen';

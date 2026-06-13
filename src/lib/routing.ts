@@ -10,7 +10,8 @@ export interface WGraph {
   locks: { n: number; name: string }[];
 }
 export interface RouteResult {
-  coords: LngLat[]; distanceKm: number; durationMin: number;
+  coords: LngLat[]; waterSegs: LngLat[][]; connectorSegs: LngLat[][];
+  distanceKm: number; durationMin: number;
   locks: string[]; connectors: number; fromSnapM: number; toSnapM: number;
   startV: number; endV: number; networkKm: number;
   crowKm: number; detour: number;   // Luftlinie & Umweg-Verhältnis (Ehrlichkeits-Check)
@@ -114,7 +115,9 @@ export async function route(from: LngLat, to: LngLat, opts: RouteOpts = {}): Pro
   if (S.ei === T.ei) {
     const distM = Math.abs(S.dA - T.dA);
     const coords: LngLat[] = [S.proj, T.proj];
-    return { coords, distanceKm: distM/1000, durationMin: distM/1000/speed*60, locks: [],
+    const isC = !!Es[5];
+    return { coords, waterSegs: isC ? [] : [coords], connectorSegs: isC ? [coords] : [],
+      distanceKm: distM/1000, durationMin: distM/1000/speed*60, locks: [],
       connectors: Es[5] ? 1 : 0, fromSnapM: Math.round(S.distM), toSnapM: Math.round(T.distM),
       startV: aS, endV: aT, networkKm: G!.meta?.network_km ?? 0,
       crowKm, detour: (distM/1000) / Math.max(crowKm, 0.1), waterways: Es[4] && !Es[5] ? [Es[4]] : [] };
@@ -142,8 +145,11 @@ export async function route(from: LngLat, to: LngLat, opts: RouteOpts = {}): Pro
   /* Vertex-Sequenz vom Ziel-Endpunkt zurück bis zu einer Quelle (aS/bS) */
   const seq: number[] = []; for (let c = endV; c !== -1; c = prevN[c]) seq.push(c); seq.reverse();
   const startV = seq[0];
-  /* Geometrie: Start-Teilstück (Proj→startV) + Mittelkanten + Ziel-Teilstück (endV→Proj) */
-  let coords: LngLat[] = (startV === aS ? S.toA : S.toB).slice();   // [Proj … startV]
+  /* Geometrie als Teilstücke mit Connector-Klassifikation: Start-Teilstück + Mittelkanten +
+     Ziel-Teilstück. Connector-Kanten (e[5]) überbrücken Netzlücken (ggf. über Land/See) →
+     separat sammeln, damit sie gestrichelt statt als „exakter Wasserweg" dargestellt werden. */
+  const parts: { conn: boolean; pts: LngLat[] }[] = [];
+  parts.push({ conn: !!Es[5], pts: (startV === aS ? S.toA : S.toB).slice() });
   const locks: string[] = []; let connectors = (Es[5] ? 1 : 0) + (Et[5] ? 1 : 0);
   const wwSet = new Set<string>(); const addWw = (e:any) => { if (e[4] && !e[5]) wwSet.add(e[4]); };
   addWw(Es); addWw(Et);
@@ -151,16 +157,27 @@ export async function route(from: LngLat, to: LngLat, opts: RouteOpts = {}): Pro
   for (let i = 1; i < seq.length; i++) {
     const u = seq[i-1], v = seq[i], e = G!.edges[prevE[v]];
     let g = e[3]; if (e[0] !== u) g = g.slice().reverse();
-    for (let k = 1; k < g.length; k++) coords.push(g[k]);
+    parts.push({ conn: !!e[5], pts: g });
     if (e[5]) connectors++; addWw(e);
     if (lockName.has(v)) { const nm = lockName.get(v)!; if (locks[locks.length-1] !== nm) locks.push(nm); }
   }
-  const endPart = (endV === aT ? T.toA : T.toB).slice().reverse();  // [endV … Proj]
-  for (let k = 1; k < endPart.length; k++) coords.push(endPart[k]);
+  parts.push({ conn: !!Et[5], pts: (endV === aT ? T.toA : T.toB).slice().reverse() });
+
+  const coords: LngLat[] = [];
+  const waterSegs: LngLat[][] = []; const connectorSegs: LngLat[][] = [];
+  const samePt = (a: LngLat, b: LngLat) => !!a && !!b && a[0] === b[0] && a[1] === b[1];
+  const pushPt = (arr: LngLat[], p: LngLat) => { const l = arr[arr.length-1]; if (!samePt(l, p)) arr.push(p); };
+  let run: LngLat[] = []; let runConn = parts.length ? parts[0].conn : false;
+  const flush = () => { if (run.length > 1) (runConn ? connectorSegs : waterSegs).push(run); run = []; };
+  for (const part of parts) {
+    if (part.conn !== runConn) { flush(); runConn = part.conn; }
+    for (const p of part.pts) { pushPt(run, p); pushPt(coords, p); }
+  }
+  flush();
 
   const distanceKm = totalM / 1000;
   const durationMin = distanceKm / speed * 60 + locks.length * lockMin;
-  return { coords, distanceKm, durationMin, locks, connectors,
+  return { coords, waterSegs, connectorSegs, distanceKm, durationMin, locks, connectors,
     fromSnapM: Math.round(S.distM), toSnapM: Math.round(T.distM),
     startV, endV, networkKm: G!.meta?.network_km ?? 0,
     crowKm, detour: distanceKm / Math.max(crowKm, 0.1), waterways: [...wwSet] };
