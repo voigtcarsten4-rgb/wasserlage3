@@ -179,7 +179,13 @@ async function boot() {
     if (doc) { try { addNoticeMarkers(api, doc.notices.filter(activeToday).filter(n=>n.type!=='yellow')); } catch(e) { console.error(e); } }
     /* Explorer aus derselben Quelle wie die Karte */
     fetch(`${import.meta.env.BASE_URL}data/pois.geojson`).then(r=>r.json()).then(fc => {
-      initExplorer(fc.features, (lng,lat) => api.map.flyTo({ center:[lng,lat], zoom: 13.5, speed: 1.4 }));
+      const exp = initExplorer(fc.features, (lng,lat) => api.map.flyTo({ center:[lng,lat], zoom: 13.5, speed: 1.4 }));
+      /* DE-weit: alle Bundesländer-POIs im Hintergrund in den Concierge mergen */
+      Object.keys(LAENDER).forEach(code => {
+        if (code==='BE'||code==='BB') return; // bereits in der Basis
+        fetch(`${import.meta.env.BASE_URL}data/de/${code}.json`).then(r=>r.ok?r.json():null)
+          .then(d => { if (d?.features) exp.addFeatures(d.features); }).catch(()=>{});
+      });
     }).catch(e => console.error('Explorer-Daten nicht ladbar', e));
     initDestination(api);
     initRoute(api, () => doc);

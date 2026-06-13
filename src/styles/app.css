@@ -606,3 +606,7 @@ html.is-offline .badge:not(.err){opacity:.5}
 .tour-photo-grad{position:absolute;inset:0;background:linear-gradient(180deg,transparent 52%,rgba(8,26,41,.55))}
 .tour-card .tour-head{padding:13px 17px 6px}
 .tour-card .tour-facts{padding:0 17px 16px}
+
+/* ═══ Services & Erlebnisse · Concierge-Zähler ═══ */
+.exp-count{color:var(--cyan-soft,#9fe9ef);font-weight:600;white-space:nowrap}
+.badge.live{background:rgba(39,192,141,.18);border:1px solid rgba(39,192,141,.45);color:#27c08d}
