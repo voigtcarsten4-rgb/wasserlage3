@@ -343,16 +343,18 @@
       </div>
     </div>
     <p class="foot-disc">⚠ <b>Kein amtlicher Informationsdienst, keine Navigationsgrundlage.</b> Verbindlich: <a href="https://www.elwis.de" target="_blank" rel="noopener">ELWIS.de</a> · Quellen: ELWIS NtS 4.0 · Pegelonline WSV · Open-Meteo · OpenFreeMap/OSM · OpenSeaMap · DTV Gelbe Welle. Jeder POI trägt Quelle &amp; Stand im Popup.</p>
-    <details class="legal-box"><summary>Impressum &amp; Datenschutz</summary>
-      <div class="legal-txt">
-        <p><b>Anbieter:</b> Wave Bite by Voigt · Einzelfirma (Schweiz) · Inhaber: Carsten Voigt<br>
-        Hauptstrasse 23 · 4242 Laufen · Schweiz · E-Mail: info@wave-bite.com · Tel: +41 78 406 16 67<br>
-        UID: CHE-431.108.641 · HR-Amt Basel-Landschaft · Operativ in DE: Wave Bite UG (haftungsbeschränkt)</p>
-        <p><b>Datenschutz (Kurzfassung):</b> Diese Beta setzt keine Werbe-Cookies und kein Google Analytics ein. Lokale Speicherung nur für Funktion (z.B. Tag/Nacht). Beim Laden werden Karten- und Wetterdaten von OpenFreeMap, OpenSeaMap, Open-Meteo und Pegelonline abgerufen (IP technisch bedingt). Community-Beiträge werden über Supabase (EU) gelesen. Vollständige Erklärung: <a href="https://voigtcarsten4-rgb.github.io/wasserlage/" rel="noopener">Wasserlage 2.0 → Impressum &amp; Datenschutz</a>.</p>
-      </div>
-    </details>
+    <p class="foot-legal-links">
+      <a data-legal="impressum" href="#">Impressum</a> · <a data-legal="datenschutz" href="#">Datenschutz</a> ·
+      <a data-legal="cookies" href="#">Cookies</a> · <a data-legal="kontakt" href="#">Kontakt</a>
+    </p>
     <p class="foot-mini"><b>Wasserlage 3.0 Beta</b> · ein Wave-Bite-Produkt · <a href="https://voigtcarsten4-rgb.github.io/wasserlage/" rel="noopener">Stabile Version 2.0</a> · Als App: Browser-Menü „Zum Startbildschirm hinzufügen"</p>
   </footer>
+</div>
+<div class="legal-modal" id="legalModal" hidden role="dialog" aria-modal="true" aria-label="Rechtliches">
+  <div class="legal-card">
+    <header class="legal-head"><b id="legalTitle">Rechtliches</b><button id="legalClose" type="button" aria-label="Schließen">✕</button></header>
+    <div class="legal-content" id="legalContent"></div>
+  </div>
 </div>
 <script type="module" src="/src/main.ts"></script>
 </body>
