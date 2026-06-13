@@ -767,3 +767,26 @@ html.is-offline .badge:not(.err){opacity:.5}
   box-shadow: 0 10px 30px -12px rgba(2,18,28,.5);
 }
 .ft-xsec text { font-family: 'Inter', system-ui, sans-serif; }
+
+
+/* ═══ Revier-Filter · Amtliche Lage bundesweit (notices-de.json) ═══ */
+.rv-bar{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.rv-chip{cursor:pointer;font:inherit;background:#fff;border:1px solid rgba(20,48,73,.14);color:#143049;
+  border-radius:999px;padding:5px 11px;font-size:.82rem;line-height:1;display:inline-flex;align-items:center;gap:5px;
+  transition:background .15s,border-color .15s,color .15s}
+.rv-chip:hover{background:#FBF1D8;border-color:rgba(217,177,77,.6)}
+.rv-chip.on{background:#143049;border-color:#143049;color:#fff}
+.rv-chip .rv-n{font-size:.72rem;opacity:.7;font-variant-numeric:tabular-nums}
+.rv-chip.on .rv-n{opacity:.85}
+
+
+/* ═══ Nav 4D · Entlang der Route (Routen-Korridor-POIs) ═══ */
+.rt-along{margin:10px 0 4px;border-top:1px solid rgba(127,127,127,.18);padding-top:9px}
+.rt-along-h{font-weight:700;font-size:.92rem;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.rt-al-n{font-weight:500;font-size:.76rem;opacity:.7}
+.rt-along-list{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+.rt-along-list li{display:flex;align-items:baseline;gap:7px;font-size:.86rem;line-height:1.25}
+.rt-along-list li b{font-variant-numeric:tabular-nums;min-width:1.4em;text-align:right}
+.rt-al-ic{font-size:1rem;flex:0 0 auto}
+.rt-al-top{opacity:.62;font-size:.78rem;margin-left:auto;text-align:right;max-width:58%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:520px){ .rt-al-top{display:none} }

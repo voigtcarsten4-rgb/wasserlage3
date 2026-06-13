@@ -4,12 +4,18 @@ const WL2 = 'https://voigtcarsten4-rgb.github.io/wasserlage/data'; // 2.0-Pipeli
 export interface Notice {
   type: 'red'|'orange'|'yellow'; type_label: string; waterway: string; wsa: string;
   reason: string; description: string; valid_from: string; valid_to: string;
-  detail_url: string; notice_id: string;
+  detail_url: string; notice_id: string; region?: string;
 }
 export interface NoticesDoc { updated_de: string; notices: Notice[] }
+export interface NoticesDEDoc { updated_de: string; regions: Record<string,number>; notices: Notice[] }
 
 export async function fetchNotices(): Promise<NoticesDoc|null> {
   try { const r = await fetch(`${WL2}/notices.json?ts=${Date.now()}`, { signal: AbortSignal.timeout(12000) }); return r.ok ? r.json() : null; }
+  catch { return null; }
+}
+/* Bundesweiter ELWIS-Datensatz (alle Reviere + region-Tag). 404 solange noch nicht publiziert → null → BB-Fallback. */
+export async function fetchNoticesDE(): Promise<NoticesDEDoc|null> {
+  try { const r = await fetch(`${WL2}/notices-de.json?ts=${Date.now()}`, { signal: AbortSignal.timeout(12000) }); return r.ok ? r.json() : null; }
   catch { return null; }
 }
 export async function fetchFT(): Promise<{updated_de:string; stand:string; havel_min_cm:number; items:any[]}|null> {

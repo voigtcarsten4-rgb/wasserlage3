@@ -86,6 +86,63 @@ function elwisOnRoute(r: RouteResult): string {
   const rows = hits.slice(0, 4).map(n => `<li>${ic(n.type)} <b>${E(n.waterway)}</b>: ${E(String(n.description || n.type_label).slice(0, 90))}${n.detail_url ? ` <a href="${E(n.detail_url)}" target="_blank" rel="noopener">ELWIS ›</a>` : ''}</li>`).join('');
   return `<div class="rt-elwis"><b>⚠️ ${hits.length} ELWIS-Meldung${hits.length > 1 ? 'en' : ''} auf deiner Route:</b><ul>${rows}</ul></div>`;
 }
+/* ── Nav 4D · Alles entlang der Route (POIs im Korridor + Sonnenuntergang) ── */
+const ALONG_CATS: { key:string; label:string; icon:string; kinds:string[] }[] = [
+  { key:'liegen',  label:'Häfen & Liegeplätze',  icon:'⚓',  kinds:['hafen','gelbe_welle','anleger'] },
+  { key:'tank',    label:'Tanken',               icon:'⛽',  kinds:['tank'] },
+  { key:'essen',   label:'Essen & Proviant',     icon:'🍽️', kinds:['gastro','shop'] },
+  { key:'baden',   label:'Baden & Strände',      icon:'🏖️', kinds:['badestelle'] },
+  { key:'sight',   label:'Sehenswürdigkeiten',   icon:'🏰',  kinds:['sight'] },
+  { key:'service', label:'Service & Entsorgung', icon:'🛠️', kinds:['entsorgung','werkstatt','slip'] },
+];
+function haversineM(a: LngLat, b: LngLat): number {
+  const R = 6371000, toR = Math.PI / 180;
+  const dLat = (b[1]-a[1])*toR, dLng = (b[0]-a[0])*toR;
+  const s1 = Math.sin(dLat/2), s2 = Math.sin(dLng/2);
+  const x = s1*s1 + Math.cos(a[1]*toR)*Math.cos(b[1]*toR)*s2*s2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(x)));
+}
+function sunsetRow(): string {
+  const w = (window as any).__wlw;
+  return (w && w.sunset)
+    ? `<div class="rt-sum-row">🌅 Sonnenuntergang heute <b>${E(w.sunset)}</b> — Ankunft vor der Dämmerung einplanen.</div>` : '';
+}
+/* POIs im ~1,5-km-Korridor um die Route, nach Kategorie gebündelt (Quelle: geladene Karten-POIs) */
+function poisAlongRoute(r: RouteResult): string {
+  if (!API) return '';
+  let feats: any[] = [];
+  try { feats = API.features() || []; } catch { return ''; }
+  const co = r.coords; if (!feats.length || co.length < 2) return '';
+  let minx=180, miny=90, maxx=-180, maxy=-90;
+  for (const c of co){ if(c[0]<minx)minx=c[0]; if(c[0]>maxx)maxx=c[0]; if(c[1]<miny)miny=c[1]; if(c[1]>maxy)maxy=c[1]; }
+  minx-=0.03; maxx+=0.03; miny-=0.02; maxy+=0.02;             // ~2 km Marge
+  const step = Math.max(1, Math.floor(co.length / 400));
+  const pts: LngLat[] = []; for (let i=0;i<co.length;i+=step) pts.push(co[i]); pts.push(co[co.length-1]);
+  const kindToCat: Record<string, typeof ALONG_CATS[number]> = {};
+  for (const c of ALONG_CATS) for (const k of c.kinds) kindToCat[k] = c;
+  const buckets: Record<string, { name:string; dist:number }[]> = {};
+  const CORRIDOR = 1500;
+  for (const f of feats){
+    const k = f.properties?.kind; const cat = kindToCat[k]; if (!cat) continue;
+    const g = f.geometry; if (!g || g.type !== 'Point') continue;
+    const ll = g.coordinates as LngLat;
+    if (ll[0]<minx||ll[0]>maxx||ll[1]<miny||ll[1]>maxy) continue;
+    let best = Infinity;
+    for (const p of pts){ const d = haversineM(ll, p); if (d<best){ best=d; if (best<120) break; } }
+    if (best > CORRIDOR) continue;
+    if (!buckets[cat.key]) buckets[cat.key] = [];
+    buckets[cat.key].push({ name: f.properties?.name || cat.label, dist: best });
+  }
+  let total = 0; const parts: string[] = [];
+  for (const cat of ALONG_CATS){
+    const arr = buckets[cat.key]; if (!arr || !arr.length) continue;
+    arr.sort((a,b)=>a.dist-b.dist); total += arr.length;
+    const top = arr.slice(0,3).map(x=>E(x.name)).join(' · ');
+    parts.push(`<li><span class="rt-al-ic">${cat.icon}</span><b>${arr.length}</b> ${E(cat.label)}<span class="rt-al-top">${top}${arr.length>3?' …':''}</span></li>`);
+  }
+  if (!total) return '';
+  return `<div class="rt-along"><div class="rt-along-h">🧭 Entlang deiner Route <span class="rt-al-n">${total} Stopps im 1,5-km-Korridor</span></div><ul class="rt-along-list">${parts.join('')}</ul></div>`;
+}
 function renderSummary(r: RouteResult | null) {
   const el = $('routeSummary'); if (!el) return;
   lastRoute = r;
@@ -108,7 +165,7 @@ function renderSummary(r: RouteResult | null) {
     <div class="rt-sum-head">🚤 Route auf dem Wasser <span class="rt-beta">Beta</span></div>
     <div class="rt-sum-big"${detourBad ? ' style="opacity:.6"' : ''}><b>${fmtKm(r.distanceKm)}</b> · ~${fmtMin(r.durationMin)}
       <span class="rt-sum-sub">bei ~9 km/h inkl. ~20 min/Schleuse · Luftlinie ${fmtKm(r.crowKm)}</span></div>
-    ${detour}${elwisOnRoute(r)}${locks}${conn}${snap}
+    ${detour}${elwisOnRoute(r)}${sunsetRow()}${poisAlongRoute(r)}${locks}${conn}${snap}
     <div class="rt-sum-acts">
       <button type="button" data-act="share" class="rt-act" title="Route als Link teilen">📤 Route teilen</button>
       <button type="button" data-act="gpx" class="rt-act" title="Als GPX für Kartenplotter/Navi-App exportieren">⬇️ GPX</button>

@@ -1,10 +1,11 @@
 /* ═══ WASSERLAGE 3.0 · Boot ═══ */
 import './styles/app.css';
-import { fetchNotices, fetchFT, fetchPegel, fetchWeather, activeToday } from './lib/live';
+import { fetchNotices, fetchNoticesDE, fetchFT, fetchPegel, fetchWeather, activeToday } from './lib/live';
 import { combine } from './lib/ampel';
 import { initMap, addNoticeMarkers, KINDS, GROUPS, LAENDER, type MapAPI } from './map/map';
 import { renderModes, MODES } from './ui/modes';
-import { renderMeldungen, renderWetter, renderPegel, renderFT, initTiefe } from './ui/dashboard';
+import { renderWetter, renderPegel, renderFT, initTiefe } from './ui/dashboard';
+import { renderMeldungen } from './ui/meldungen';
 import { initExplorer } from './ui/explorer';
 import { initCommunity } from './ui/community';
 import { renderSky, startSkyTicker } from './ui/sky';
@@ -172,13 +173,13 @@ async function boot() {
   initMelden(()=>setTimeout(initCommunity, 1200));
   renderSky(null);
   const mapP = initMap('map').catch(e => { console.error('Karte konnte nicht geladen werden', e); return null; });
-  const [w, doc, ft] = await Promise.all([fetchWeather(), fetchNotices(), fetchFT()]);
+  const [w, doc, ft, deDoc] = await Promise.all([fetchWeather(), fetchNotices(), fetchFT(), fetchNoticesDE()]);
   (window as any).__wlw = w;
   if (w) applyTod(w.sunrise, w.sunset);
   renderSky(w); startSkyTicker(()=>w);
   const state = combine(w, doc?.notices ?? null);
   setAmpel(state); setReco(state, doc, w); setChips(w, doc, ft);
-  renderMeldungen(doc); renderWetter(w); initFooter(w); renderFT(ft); initTiefe();
+  renderMeldungen(doc, deDoc); renderWetter(w); initFooter(w); renderFT(ft); initTiefe();
   initEarlyAccess(); initGamification(); initShare(); initLegal();
   fetch(`${import.meta.env.BASE_URL}data/pegel.json`).then(r=>r.json()).then(async (pj)=>{
     const uuids = pj.groups.flatMap((g:any)=>g.stations.map((s:any)=>s.uuid));
