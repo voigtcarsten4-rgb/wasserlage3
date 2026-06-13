@@ -125,6 +125,18 @@ function initSafety() {
   });
 }
 
+function initFooter(w: any) {
+  const el = document.getElementById('footWx');
+  if (el && w) {
+    const wc = (c:number)=> c===0?'Klar': c<=3?'Leicht bewölkt': c<=48?'Bewölkt': c<=67?'Regen': c<=77?'Schnee': c<=82?'Schauer': c>=95?'Gewitter':'Wechselhaft';
+    const bf = (b:number)=> b<=1?'Windstill': b<=3?'Sanfte Brise': b<=4?'Mäßiger Wind': b<=5?'Frischer Wind': b<=6?'Starker Wind':'Sturm';
+    const ic = (c:number)=> c===0?'☀️': c<=2?'🌤️': c<=3?'☁️': c>=95?'⛈️': c>=71?'❄️': c>=51?'🌧️':'⛅';
+    const t = el.querySelector('.fwx-tx'), i = el.querySelector('.fwx-ic');
+    if (i) i.textContent = ic(w.code); if (t) t.textContent = `Berlin/Brandenburg · ${w.temp}° · ${wc(w.code)} · ${bf(w.bft)}`;
+  }
+  document.getElementById('footTop')?.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+}
+
 function initReveal() {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if (!('IntersectionObserver' in window)) return;
@@ -153,7 +165,7 @@ async function boot() {
   renderSky(w); startSkyTicker(()=>w);
   const state = combine(w, doc?.notices ?? null);
   setAmpel(state); setReco(state, doc, w); setChips(w, doc, ft);
-  renderMeldungen(doc); renderWetter(w);
+  renderMeldungen(doc); renderWetter(w); initFooter(w);
   initEarlyAccess(); initGamification(); initShare();
   fetch(`${import.meta.env.BASE_URL}data/pegel.json`).then(r=>r.json()).then(async (pj)=>{
     const uuids = pj.groups.flatMap((g:any)=>g.stations.map((s:any)=>s.uuid));

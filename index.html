@@ -301,18 +301,45 @@
     <div id="shareSlot"></div>
   </section>
 
-  <!-- ═══ 9/10 · FOOTER: Rechtliches, Quellen, App ═══ -->
-  <footer class="foot" id="legal">
-    <p class="disc">⚠ <b>Kein amtlicher Informationsdienst, keine Navigationsgrundlage.</b> Verbindlich: <a href="https://www.elwis.de" target="_blank" rel="noopener">ELWIS.de</a>. Quellen: ELWIS NtS 4.0 · Pegelonline WSV · Open-Meteo · OpenFreeMap/OSM · OpenSeaMap · DTV Gelbe-Welle-Liste (03/2026). Jeder POI trägt Quelle & Datenstand im Popup.</p>
-    <details class="legal-box"><summary>Impressum & Datenschutz</summary>
+  <!-- ═══ 9/10 · FOOTER: edel, animiert, DE-weit ═══ -->
+  <footer class="foot3" id="legal">
+    <div class="foot-atmo" aria-hidden="true"><span class="foot-glow"></span><span class="fcloud c1"></span><span class="fcloud c2"></span><span class="fcloud c3"></span></div>
+    <svg class="foot-wave" viewBox="0 0 1440 70" preserveAspectRatio="none" aria-hidden="true"><path d="M0,38 C240,70 480,8 720,38 C960,68 1200,6 1440,38 L1440,70 L0,70 Z"/></svg>
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <div class="foot-logo"><span class="brand-wave">≈</span> Wasserlage <span class="foot-v">3.0</span></div>
+        <p class="foot-tag">Dein Revier-Cockpit fürs Wasser — Karte, Lage, Pegel, Wetter & Wasser-Routing. <b>Deutschlandweit.</b></p>
+        <p class="foot-tag2">Ein Wave-Bite-Produkt · schwimmendes Premium-Bistro &amp; Erlebnisse am Wasser, Dahme-Seenland.</p>
+        <div class="foot-cta">
+          <a href="https://wave-bite.com/" target="_blank" rel="noopener">🌊 Wave Bite</a>
+          <a href="https://voigtcarsten4-rgb.github.io/wave-bite-water-patrol/?from=wasserlage" target="_blank" rel="noopener">🚤 Water Patrol</a>
+        </div>
+      </div>
+      <nav class="foot-nav" aria-label="Footer-Navigation">
+        <h4>Navigation</h4>
+        <a href="#top">Live-Lage</a><a href="#karte">Karte &amp; Routing</a><a href="#entdecken">Revier entdecken</a>
+        <a href="#sicherheit">Sicherheitsanker</a><a href="#touren">Reviere &amp; Events</a><a href="#community">Community</a>
+        <a href="#partner">Für Partner</a><a href="#wavebite">Wave-Bite-Welt</a>
+      </nav>
+      <div class="foot-side">
+        <div class="foot-wx" id="footWx"><span class="fwx-ic">🌤️</span><span class="fwx-tx">Wetter lädt …</span><span class="fwx-live">LIVE</span></div>
+        <div class="foot-actions">
+          <a class="foot-btn gold" href="#earlyaccess">📬 Revier-Updates</a>
+          <button class="foot-btn ghost" id="footTop" type="button">↑ Nach oben</button>
+        </div>
+        <p class="foot-copy">© 2026 Wave Bite by Voigt · <a href="https://wave-bite.com/" target="_blank" rel="noopener">wave-bite.com</a></p>
+      </div>
+    </div>
+    <p class="foot-disc">⚠ <b>Kein amtlicher Informationsdienst, keine Navigationsgrundlage.</b> Verbindlich: <a href="https://www.elwis.de" target="_blank" rel="noopener">ELWIS.de</a> · Quellen: ELWIS NtS 4.0 · Pegelonline WSV · Open-Meteo · OpenFreeMap/OSM · OpenSeaMap · DTV Gelbe Welle. Jeder POI trägt Quelle &amp; Stand im Popup.</p>
+    <details class="legal-box"><summary>Impressum &amp; Datenschutz</summary>
       <div class="legal-txt">
         <p><b>Anbieter:</b> Wave Bite by Voigt · Einzelfirma (Schweiz) · Inhaber: Carsten Voigt<br>
         Hauptstrasse 23 · 4242 Laufen · Schweiz · E-Mail: info@wave-bite.com · Tel: +41 78 406 16 67<br>
         UID: CHE-431.108.641 · HR-Amt Basel-Landschaft · Operativ in DE: Wave Bite UG (haftungsbeschränkt)</p>
-        <p><b>Datenschutz (Kurzfassung):</b> Diese Beta setzt keine Werbe-Cookies und kein Google Analytics ein. Lokale Speicherung nur für Funktion (z.B. Tag/Nacht). Beim Laden werden Karten- und Wetterdaten von OpenFreeMap, OpenSeaMap, Open-Meteo und Pegelonline abgerufen (IP technisch bedingt). Community-Beiträge werden über Supabase (EU) gelesen. Vollständige Erklärung: <a href="https://voigtcarsten4-rgb.github.io/wasserlage/" rel="noopener">Wasserlage 2.0 → Impressum & Datenschutz</a>.</p>
+        <p><b>Datenschutz (Kurzfassung):</b> Diese Beta setzt keine Werbe-Cookies und kein Google Analytics ein. Lokale Speicherung nur für Funktion (z.B. Tag/Nacht). Beim Laden werden Karten- und Wetterdaten von OpenFreeMap, OpenSeaMap, Open-Meteo und Pegelonline abgerufen (IP technisch bedingt). Community-Beiträge werden über Supabase (EU) gelesen. Vollständige Erklärung: <a href="https://voigtcarsten4-rgb.github.io/wasserlage/" rel="noopener">Wasserlage 2.0 → Impressum &amp; Datenschutz</a>.</p>
       </div>
     </details>
-    <p><b>Wasserlage 3.0 Beta</b> · ein Wave-Bite-Produkt · <a href="https://voigtcarsten4-rgb.github.io/wasserlage/" rel="noopener">Stabile Version 2.0</a> · Als App: über Browser-Menü „Zum Startbildschirm hinzufügen"</p>
+    <p class="foot-mini"><b>Wasserlage 3.0 Beta</b> · ein Wave-Bite-Produkt · <a href="https://voigtcarsten4-rgb.github.io/wasserlage/" rel="noopener">Stabile Version 2.0</a> · Als App: Browser-Menü „Zum Startbildschirm hinzufügen"</p>
   </footer>
 </div>
 <script type="module" src="/src/main.ts"></script>
