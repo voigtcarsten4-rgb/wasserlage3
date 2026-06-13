@@ -16,8 +16,12 @@ export async function initTouren() {
     const tours = tr.ok ? await tr.json() : [];
     const events = er.ok ? await er.json() : [];
     if (bdg) bdg.textContent = `● ${tours.length} Reviere · ${events.length} Events`;
+    const imgFor = (t:any) => { const k=((t.revier||'')+' '+(t.title||'')).toLowerCase();
+      return k.includes('spree')?'spree': k.includes('dahme')?'dahme': k.includes('oder')?'oder':
+             k.includes('kanal')?'kanal': k.includes('havel')?'havel':'banner'; };
     if (tEl) tEl.innerHTML = tours.map((t:any) => `
       <article class="tour-card glass">
+        <div class="tour-photo"><img src="${import.meta.env.BASE_URL}img/revier/${imgFor(t)}.jpg" alt="${E(t.title)}" loading="lazy"><span class="tour-photo-grad"></span></div>
         <div class="tour-head"><b>${E(t.title)}</b><span class="tour-sub">${E(t.subtitle||'')}</span></div>
         <ul class="tour-facts">${(t.story?.facts||[]).map((f:any)=>`<li><span class="ic">${E(f.ic)}</span>${E(f.t)}</li>`).join('')}</ul>
       </article>`).join('');
