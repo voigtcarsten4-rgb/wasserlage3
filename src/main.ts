@@ -12,6 +12,7 @@ import { initCommunity } from './ui/community';
 import { renderSky, startSkyTicker } from './ui/sky';
 import { initMelden } from './ui/melden';
 import { initTouren } from './ui/touren';
+import { initTourenDE } from './ui/touren_de';
 import { initNele, type NeleState } from './ui/nele';
 import { initDestination } from './ui/destination';
 import { initRoute } from './ui/route';
@@ -186,6 +187,7 @@ async function boot() {
   initNav();
   initCommunity();
   initTouren();
+  initTourenDE();
   initChecklists();
   applyAudience(); window.addEventListener('wl3-mode', applyAudience);
   initMelden(()=>setTimeout(initCommunity, 1200));
