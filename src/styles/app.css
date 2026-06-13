@@ -617,6 +617,7 @@ html.is-offline .badge:not(.err){opacity:.5}
 .foot-legal-links a:hover{color:var(--gold-soft,#FFE29A)}
 .legal-modal{position:fixed;inset:0;z-index:120;display:grid;place-items:center;padding:18px;
   background:rgba(4,16,28,.62);backdrop-filter:blur(6px);animation:legalFade .25s ease}
+.legal-modal[hidden]{display:none!important}
 @keyframes legalFade{from{opacity:0}to{opacity:1}}
 .legal-card{width:min(620px,100%);max-height:86vh;display:flex;flex-direction:column;overflow:hidden;
   background:#FCFAF4;color:var(--ink,#143049);border:1px solid rgba(217,177,77,.4);border-radius:20px;
