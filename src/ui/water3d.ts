@@ -111,15 +111,21 @@ export async function initWater3D() {
   const water = new THREE.Mesh(geo, mat);
   water.rotation.x = -Math.PI/2; water.position.y = -0.6; scene.add(water);
 
-  /* ── Schiff am Horizont (Silhouette, zieht langsam vorbei) ── */
+  /* ── Schiff am Horizont (schlanke Motoryacht-Silhouette, zieht langsam vorbei) ── */
   const ship = new THREE.Group();
+  const shipMat = new THREE.MeshBasicMaterial({ color:0x14252f, transparent:true, opacity:0.85 });
+  /* langer, niedriger Rumpf mit spitzem Bug (rechts) — kein hoher Block */
   const hull = new THREE.Shape();
-  hull.moveTo(-3.2,0); hull.lineTo(3.2,0); hull.lineTo(2.4,1.0); hull.lineTo(-2.6,1.0); hull.closePath();
-  const shipMat = new THREE.MeshBasicMaterial({ color:0x12222e, transparent:true, opacity:0.85 });
+  hull.moveTo(-4.8,0.18); hull.lineTo(-4.6,1.02); hull.lineTo(3.4,1.02);
+  hull.lineTo(6.4,0.74); hull.lineTo(3.2,0.10); hull.closePath();
   ship.add(new THREE.Mesh(new THREE.ShapeGeometry(hull), shipMat));
-  const cabin = new THREE.Mesh(new THREE.PlaneGeometry(2.4,1.5), shipMat); cabin.position.set(-0.3,1.6,0.01); ship.add(cabin);
-  const mast = new THREE.Mesh(new THREE.PlaneGeometry(0.14,2.6), shipMat); mast.position.set(1.7,1.8,0.01); ship.add(mast);
-  ship.position.set(-26, 0.15, -90); scene.add(ship);
+  /* flache, schräge Kabine vorn — niedrige Aufbauten */
+  const cab = new THREE.Shape();
+  cab.moveTo(-2.6,1.02); cab.lineTo(-2.0,1.74); cab.lineTo(1.7,1.74); cab.lineTo(2.7,1.02); cab.closePath();
+  ship.add(new THREE.Mesh(new THREE.ShapeGeometry(cab), shipMat));
+  /* kurze Antenne */
+  const mast = new THREE.Mesh(new THREE.PlaneGeometry(0.07,1.2), shipMat); mast.position.set(2.1,2.3,0.01); ship.add(mast);
+  ship.position.set(-26, -0.05, -92); ship.scale.setScalar(0.9); scene.add(ship);
 
   /* ── Vögel (V-Silhouetten, flattern & gleiten) ── */
   const birds: any[] = [];
@@ -172,7 +178,7 @@ export async function initWater3D() {
     starMat.opacity += ((night ? 0.9*(0.78+0.22*Math.sin(t*2.5)) : 0) - starMat.opacity)*0.04;
     /* Schiff am Horizont: langsam ziehen + leicht schaukeln */
     ship.position.x += 0.018 + storm*0.012; if (ship.position.x > 34) ship.position.x = -34;
-    ship.position.y = 0.15 + Math.sin(t*0.5)*(0.10+storm*0.20);
+    ship.position.y = -0.05 + Math.sin(t*0.5)*(0.09+storm*0.18);
     ship.rotation.z = Math.sin(t*0.5)*0.02;
     (shipMat as any).opacity += ((0.5 + 0.35*dayl) - (shipMat as any).opacity)*0.02;
     /* Vögel: Flügelschlag + Gleiten */

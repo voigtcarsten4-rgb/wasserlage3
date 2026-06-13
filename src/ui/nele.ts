@@ -48,7 +48,7 @@ const KNOW: Record<string,string> = {
   schleuse: `<b>Schleusen-Knigge:</b><br>• Vor Anfahrt Betriebszeiten & UKW-Kanal prüfen<br>• Am Warteplatz auf Lichtsignal warten (rot = warten, grün = einfahren)<br>• Langsam einfahren, Leinen mittschiffs belegen, Fender raus<br>• Motor an lassen, Crew an den Leinen, ruhig nachführen<br>• Erst ausfahren, wenn das Signal frei gibt.`,
   knoten: `<b>Wichtige Knoten:</b><br>• <b>Webleinstek</b> (Festmachen am Poller)<br>• <b>Palstek</b> (feste Schlaufe, klemmt nicht)<br>• <b>Achtknoten</b> (Stopper am Leinenende)<br>• <b>Belegen</b> an der Klampe in 8er-Schlägen.`,
   revier: `<b>Reviere Berlin/Brandenburg:</b> Havel & Seen (weite Reviere, Westhavelland-Sternenpark) · Spree City (Funkpflicht Berlin-Mitte, Landwehrkanal Einbahn) · Dahme-Seenkette (führerscheinfrei, einsteigerfreundlich) · Oder (frei fließend, für Erfahrene). Mehr unter „Reviere & Events".`,
-  route: `🚤 Klar! Tippe oben auf der Karte deinen <b>Start (A)</b> und dein <b>Ziel (B)</b> an — ich route dich entlang der schiffbaren Wege, mit Distanz, Fahrzeit und Schleusen. Oder wähle ein Ziel bei „Wo möchtest du heute hin?" und tippe „🚤 Route auf dem Wasser".`,
+  route: `🚤 Klar! Tippe oben auf der Karte deinen <b>Start (A)</b> und dein <b>Ziel (B)</b> an — ich route dich entlang der schiffbaren Wege mit Distanz, Fahrzeit & Schleusen. Das geht jetzt <b>deutschlandweit</b> (Rhein, Elbe, Donau, Mittellandkanal, Berliner Reviere …). Oder wähle ein Ziel bei „Wo möchtest du heute hin?" und tippe „🚤 Route auf dem Wasser".`,
 };
 type QA = { q: string; icon: string; a: (s: NeleState) => string | Promise<string>; offline?: boolean };
 const QUESTIONS: QA[] = [
@@ -123,7 +123,7 @@ function speak(t: string) {
 }
 
 export function initNele(state: NeleState) {
-  if (document.getElementById('nele')) return;
+  document.querySelectorAll('#nele').forEach(n => n.remove());  // jede (auch veraltete) Instanz hart entfernen → garantiert nur EINE Nele
   try { voiceOn = localStorage.getItem('wl3_voice') === '1'; } catch { /* */ }
   const avatarHTML = reduceMotion()
     ? `<img src="${import.meta.env.BASE_URL}nele.jpg" alt="Nele">`
@@ -190,7 +190,7 @@ export function initNele(state: NeleState) {
   const open = () => {
     panel.hidden = false; root.classList.add('is-open');
     if (!greeted) { greeted = true;
-      say('Moin! 👋 Ich bin <b>Nele</b>, deine Lotsin fürs Revier. Sag mir, was du vorhast — ich verrate dir in einem Satz, ob du heute rausfahren kannst, wo\'s eng wird, wo du tankst, anlegst, isst oder die schönste Route findest. ⚓');
+      say('Moin! 👋 Ich bin <b>Nele</b>, deine Lotsin fürs Revier — jetzt <b>deutschlandweit</b> an Bord. Sag mir, was du vorhast: ob du heute rausfahren kannst, wo\'s eng wird, wo du tankst, anlegst, isst oder die schönste Wasser-Route findest. ⚓');
       if (navigator.onLine) setTimeout(() => say(reco(state)), 500);
       else setTimeout(() => say('Du bist gerade <b>offline</b> — Live-Lage & Wetter zeige ich wieder online. Checkliste, Sicherheit, Notfall, Schleuse & Revier habe ich auch ohne Netz.'), 500);
       renderChips();
