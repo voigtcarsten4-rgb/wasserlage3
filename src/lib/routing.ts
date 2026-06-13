@@ -20,7 +20,7 @@ export interface RouteResult {
 export interface RouteOpts { speedKmh?: number; lockMin?: number }
 
 let G: WGraph | null = null;
-let adj: { to: number; w: number; ei: number }[][] = [];
+let adj: { to: number; w: number; ei: number; conn: boolean }[][] = [];
 let lockName = new Map<number, string>();
 let loading: Promise<WGraph> | null = null;
 
@@ -43,8 +43,8 @@ export async function loadGraph(): Promise<WGraph> {
     const g: WGraph = await r.json();
     adj = Array.from({ length: g.nodes.length }, () => []);
     g.edges.forEach((e, ei) => {
-      const [a, b, w] = e;
-      adj[a].push({ to: b, w, ei }); adj[b].push({ to: a, w, ei });
+      const [a, b, w] = e; const conn = !!e[5];
+      adj[a].push({ to: b, w, ei, conn }); adj[b].push({ to: a, w, ei, conn });
     });
     lockName = new Map(g.locks.map(l => [l.n, l.name]));
     G = g; return g;
@@ -127,20 +127,24 @@ export async function route(from: LngLat, to: LngLat, opts: RouteOpts = {}): Pro
   const dist = new Float64Array(N).fill(Infinity);
   const prevN = new Int32Array(N).fill(-1);
   const prevE = new Int32Array(N).fill(-1);
+  const PEN = 3.5;   // Connector-Strafe: echter Wasserweg wird bevorzugt, solange er nicht > PEN× länger ist
+  const cost = (re: { w: number; conn: boolean }) => re.conn ? re.w * PEN : re.w;
   const h = new Heap();
-  dist[aS] = S.dA; h.push(S.dA, aS);
-  if (S.dB < dist[bS]) { dist[bS] = S.dB; h.push(S.dB, bS); }
+  const seedA = Es[5] ? S.dA * PEN : S.dA, seedB = Es[5] ? S.dB * PEN : S.dB;
+  dist[aS] = seedA; h.push(seedA, aS);
+  if (seedB < dist[bS]) { dist[bS] = seedB; h.push(seedB, bS); }
   while (h.size) {
     const [d, u] = h.pop()!;
     if (d > dist[u]) continue;
     for (const e of adj[u]) {
-      const nd = d + e.w;
+      const nd = d + cost(e);
       if (nd < dist[e.to]) { dist[e.to] = nd; prevN[e.to] = u; prevE[e.to] = e.ei; h.push(nd, e.to); }
     }
   }
-  const viaA = dist[aT] + T.dA, viaB = dist[bT] + T.dB;
+  const endA = Et[5] ? T.dA * PEN : T.dA, endB = Et[5] ? T.dB * PEN : T.dB;
+  const viaA = dist[aT] + endA, viaB = dist[bT] + endB;
   if (!isFinite(viaA) && !isFinite(viaB)) return null;
-  const useA = viaA <= viaB; const endV = useA ? aT : bT; const totalM = useA ? viaA : viaB;
+  const useA = viaA <= viaB; const endV = useA ? aT : bT;
 
   /* Vertex-Sequenz vom Ziel-Endpunkt zurück bis zu einer Quelle (aS/bS) */
   const seq: number[] = []; for (let c = endV; c !== -1; c = prevN[c]) seq.push(c); seq.reverse();
@@ -150,6 +154,7 @@ export async function route(from: LngLat, to: LngLat, opts: RouteOpts = {}): Pro
      separat sammeln, damit sie gestrichelt statt als „exakter Wasserweg" dargestellt werden. */
   const parts: { conn: boolean; pts: LngLat[] }[] = [];
   parts.push({ conn: !!Es[5], pts: (startV === aS ? S.toA : S.toB).slice() });
+  let realM = (startV === aS ? S.dA : S.dB);   // echte Distanz (unabhängig von der Routing-Strafe)
   const locks: string[] = []; let connectors = (Es[5] ? 1 : 0) + (Et[5] ? 1 : 0);
   const wwSet = new Set<string>(); const addWw = (e:any) => { if (e[4] && !e[5]) wwSet.add(e[4]); };
   addWw(Es); addWw(Et);
@@ -158,10 +163,12 @@ export async function route(from: LngLat, to: LngLat, opts: RouteOpts = {}): Pro
     const u = seq[i-1], v = seq[i], e = G!.edges[prevE[v]];
     let g = e[3]; if (e[0] !== u) g = g.slice().reverse();
     parts.push({ conn: !!e[5], pts: g });
+    realM += e[2] || 0;
     if (e[5]) connectors++; addWw(e);
     if (lockName.has(v)) { const nm = lockName.get(v)!; if (locks[locks.length-1] !== nm) locks.push(nm); }
   }
   parts.push({ conn: !!Et[5], pts: (endV === aT ? T.toA : T.toB).slice().reverse() });
+  realM += (endV === aT ? T.dA : T.dB);
 
   const coords: LngLat[] = [];
   const waterSegs: LngLat[][] = []; const connectorSegs: LngLat[][] = [];
@@ -175,7 +182,7 @@ export async function route(from: LngLat, to: LngLat, opts: RouteOpts = {}): Pro
   }
   flush();
 
-  const distanceKm = totalM / 1000;
+  const distanceKm = realM / 1000;
   const durationMin = distanceKm / speed * 60 + locks.length * lockMin;
   return { coords, waterSegs, connectorSegs, distanceKm, durationMin, locks, connectors,
     fromSnapM: Math.round(S.distM), toSnapM: Math.round(T.distM),
