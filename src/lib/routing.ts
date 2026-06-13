@@ -12,7 +12,7 @@ export interface WGraph {
 export interface RouteResult {
   coords: LngLat[]; waterSegs: LngLat[][]; connectorSegs: LngLat[][];
   distanceKm: number; durationMin: number;
-  locks: string[]; connectors: number; fromSnapM: number; toSnapM: number;
+  locks: string[]; lockPts: { name: string; at: LngLat; km: number }[]; connectors: number; fromSnapM: number; toSnapM: number;
   startV: number; endV: number; networkKm: number;
   crowKm: number; detour: number;   // Luftlinie & Umweg-Verhältnis (Ehrlichkeits-Check)
   waterways: string[];              // befahrene Wasserstraßen (für ELWIS-Abgleich)
@@ -117,7 +117,7 @@ export async function route(from: LngLat, to: LngLat, opts: RouteOpts = {}): Pro
     const coords: LngLat[] = [S.proj, T.proj];
     const isC = !!Es[5];
     return { coords, waterSegs: isC ? [] : [coords], connectorSegs: isC ? [coords] : [],
-      distanceKm: distM/1000, durationMin: distM/1000/speed*60, locks: [],
+      distanceKm: distM/1000, durationMin: distM/1000/speed*60, locks: [], lockPts: [],
       connectors: Es[5] ? 1 : 0, fromSnapM: Math.round(S.distM), toSnapM: Math.round(T.distM),
       startV: aS, endV: aT, networkKm: G!.meta?.network_km ?? 0,
       crowKm, detour: (distM/1000) / Math.max(crowKm, 0.1), waterways: Es[4] && !Es[5] ? [Es[4]] : [] };
@@ -155,17 +155,18 @@ export async function route(from: LngLat, to: LngLat, opts: RouteOpts = {}): Pro
   const parts: { conn: boolean; pts: LngLat[] }[] = [];
   parts.push({ conn: !!Es[5], pts: (startV === aS ? S.toA : S.toB).slice() });
   let realM = (startV === aS ? S.dA : S.dB);   // echte Distanz (unabhängig von der Routing-Strafe)
-  const locks: string[] = []; let connectors = (Es[5] ? 1 : 0) + (Et[5] ? 1 : 0);
+  const locks: string[] = []; const lockPts: { name:string; at:LngLat; km:number }[] = [];
+  let connectors = (Es[5] ? 1 : 0) + (Et[5] ? 1 : 0);
   const wwSet = new Set<string>(); const addWw = (e:any) => { if (e[4] && !e[5]) wwSet.add(e[4]); };
   addWw(Es); addWw(Et);
-  if (lockName.has(startV)) locks.push(lockName.get(startV)!);
+  if (lockName.has(startV)) { const nm = lockName.get(startV)!; locks.push(nm); lockPts.push({ name: nm, at: G!.nodes[startV], km: realM/1000 }); }
   for (let i = 1; i < seq.length; i++) {
     const u = seq[i-1], v = seq[i], e = G!.edges[prevE[v]];
     let g = e[3]; if (e[0] !== u) g = g.slice().reverse();
     parts.push({ conn: !!e[5], pts: g });
     realM += e[2] || 0;
     if (e[5]) connectors++; addWw(e);
-    if (lockName.has(v)) { const nm = lockName.get(v)!; if (locks[locks.length-1] !== nm) locks.push(nm); }
+    if (lockName.has(v)) { const nm = lockName.get(v)!; if (locks[locks.length-1] !== nm) { locks.push(nm); lockPts.push({ name: nm, at: G!.nodes[v], km: realM/1000 }); } }
   }
   parts.push({ conn: !!Et[5], pts: (endV === aT ? T.toA : T.toB).slice().reverse() });
   realM += (endV === aT ? T.dA : T.dB);
@@ -184,7 +185,7 @@ export async function route(from: LngLat, to: LngLat, opts: RouteOpts = {}): Pro
 
   const distanceKm = realM / 1000;
   const durationMin = distanceKm / speed * 60 + locks.length * lockMin;
-  return { coords, waterSegs, connectorSegs, distanceKm, durationMin, locks, connectors,
+  return { coords, waterSegs, connectorSegs, distanceKm, durationMin, locks, lockPts, connectors,
     fromSnapM: Math.round(S.distM), toSnapM: Math.round(T.distM),
     startV, endV, networkKm: G!.meta?.network_km ?? 0,
     crowKm, detour: distanceKm / Math.max(crowKm, 0.1), waterways: [...wwSet] };

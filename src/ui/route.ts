@@ -135,6 +135,183 @@ function toggleCaptain() {
   flashHint(captainOn ? '🧭 Captain-View: 3D, Fahrtrichtung oben — bei aktivem GPS-Kurs dreht die Karte mit.' : '🗺 Klassische Kartenansicht (Norden oben).');
 }
 
+/* ════════ Live-Copilot · Etappe H ════════
+ * Mitlaufender Boots-Punkt + Cockpit + Lilly-Echtzeithinweise. Zwei Quellen:
+ *   · Vorschau ("Tour abspielen"): fliegt die Route ab — auf Desktop & Mobil ohne GPS.
+ *   · Live-GPS: watchPosition folgt der echten Fahrt (Fahrtrichtung-oben).
+ * Hinweise kommen aus echten Daten: positionierte Schleusen (lockPts), ELWIS-Lage, Restweg/Ankunft.
+ * Ehrlich: Vorschau ist eine Demo-/Planungsansicht, Live nutzt echtes GPS. */
+type NavSource = 'preview' | 'live';
+let navOn = false;
+let navRaf = 0, navWatch = 0, navPrevTs = 0, navCamTs = 0;
+let navS = 0, navTotM = 0, navSeg = 1; let navCum: number[] = []; let navCoords: LngLat[] = [];
+let navPlayMps = 0;
+let boat: maplibregl.Marker | null = null;
+let speakOn = false; let lastHintKey = ''; let navSavedCam: any = null;
+
+function navParam(coords: LngLat[]) {
+  navCoords = coords; navCum = [0]; let t = 0;
+  for (let i = 1; i < coords.length; i++) { t += haversineM(coords[i - 1], coords[i]); navCum.push(t); }
+  navTotM = t;
+}
+function navPosAt(s: number): { pos: LngLat; brg: number } {
+  const n = navCoords.length;
+  if (n < 2) return { pos: navCoords[0] || [0, 0], brg: 0 };
+  if (s <= 0) return { pos: navCoords[0], brg: bearingOf(navCoords[0], navCoords[1]) };
+  if (s >= navTotM) return { pos: navCoords[n - 1], brg: bearingOf(navCoords[n - 2], navCoords[n - 1]) };
+  if (navCum[navSeg] < s) { while (navSeg < n - 1 && navCum[navSeg] < s) navSeg++; }
+  else { while (navSeg > 1 && navCum[navSeg - 1] > s) navSeg--; }
+  const a = navCoords[navSeg - 1], b = navCoords[navSeg];
+  const segLen = navCum[navSeg] - navCum[navSeg - 1];
+  const tt = segLen > 0 ? (s - navCum[navSeg - 1]) / segLen : 0;
+  return { pos: [a[0] + (b[0] - a[0]) * tt, a[1] + (b[1] - a[1]) * tt], brg: bearingOf(a, b) };
+}
+function navNearestS(pos: LngLat): number {
+  let best = Infinity, bi = 0;
+  for (let i = 0; i < navCoords.length; i++) { const d = haversineM(pos, navCoords[i]); if (d < best) { best = d; bi = i; } }
+  return navCum[bi] || 0;
+}
+function ensureBoat(): maplibregl.Marker {
+  if (boat) return boat;
+  const el = document.createElement('div'); el.className = 'nav-boat';
+  el.innerHTML = '<svg viewBox="0 0 40 40" width="40" height="40" aria-hidden="true"><defs><radialGradient id="nbG" cx="50%" cy="58%" r="60%"><stop offset="0%" stop-color="#bafcff"/><stop offset="100%" stop-color="#2ea7ad"/></radialGradient></defs><circle cx="20" cy="20" r="12" fill="rgba(63,195,201,.22)"/><path d="M20 3 L31 32 L20 25 L9 32 Z" fill="url(#nbG)" stroke="#eafffe" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+  boat = new maplibregl.Marker({ element: el, rotationAlignment: 'map', pitchAlignment: 'map' });
+  return boat;
+}
+function speak(t: string) {
+  if (!speakOn || !t) return;
+  try { const u = new SpeechSynthesisUtterance(t); u.lang = 'de-DE'; u.rate = 1; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch { /* TTS optional */ }
+}
+function toggleSpeak() {
+  speakOn = !speakOn;
+  const b = document.getElementById('nvSpeak'); if (b) { b.textContent = speakOn ? '🔊 Ansagen' : '🔈 Stumm'; b.classList.toggle('on', speakOn); }
+  if (speakOn) speak('Sprachansagen aktiv.'); else { try { speechSynthesis.cancel(); } catch { /* ignore */ } }
+}
+function navUI(create: boolean) {
+  if (!API) return;
+  const cont = API.map.getContainer();
+  let wrap = document.getElementById('navHud');
+  if (create && !wrap) {
+    wrap = document.createElement('div'); wrap.id = 'navHud'; wrap.className = 'nav-hud';
+    wrap.innerHTML = `
+      <div class="nav-cockpit">
+        <div class="nv"><span class="nv-k">Tempo</span><span class="nv-v" id="nvSpeed">–</span></div>
+        <div class="nv"><span class="nv-k">Kurs</span><span class="nv-v" id="nvHead">–</span></div>
+        <div class="nv"><span class="nv-k">Rest</span><span class="nv-v" id="nvRest">–</span></div>
+        <div class="nv"><span class="nv-k">Ankunft</span><span class="nv-v" id="nvEta">–</span></div>
+      </div>
+      <div class="nav-lilly" id="nvLilly"><span class="nav-lilly-av">🧭</span><span id="nvHint">Lilly an Bord — gute Fahrt!</span></div>
+      <div class="nav-ctrls">
+        <button type="button" id="nvSpeak" class="nav-btn" title="Sprachansagen an/aus">🔈 Stumm</button>
+        <button type="button" id="nvStop" class="nav-btn stop" title="Navigation beenden">⏹ Stopp</button>
+      </div>`;
+    cont.appendChild(wrap);
+    document.getElementById('nvStop')?.addEventListener('click', stopNav);
+    document.getElementById('nvSpeak')?.addEventListener('click', toggleSpeak);
+    requestAnimationFrame(() => wrap?.classList.add('in'));
+  } else if (!create && wrap) { wrap.remove(); }
+}
+function navHint(s: number): { key: string; html: string; say: string } {
+  const r = lastRoute!; const restM = Math.max(0, navTotM - s);
+  const ahead = (r.lockPts || []).map(l => ({ name: l.name, dM: l.km * 1000 - s })).filter(l => l.dM > -60).sort((a, b) => a.dM - b.dM)[0];
+  if (ahead) {
+    if (ahead.dM < 140) return { key: 'lock0:' + ahead.name, html: `🔒 <b>Schleuse ${E(ahead.name)}</b> — Schleusung, Wartebereich & Signal beachten.`, say: `Schleuse ${ahead.name}. Bitte Schleusung beachten.` };
+    if (ahead.dM < 8000) { const dk = fmtKm(ahead.dM / 1000); return { key: 'lock:' + ahead.name + ':' + Math.round(ahead.dM / 300), html: `🔒 In <b>${dk}</b> Schleuse <b>${E(ahead.name)}</b>.`, say: `In ${dk}: Schleuse ${ahead.name}.` }; }
+  }
+  if (restM < 120) return { key: 'ziel', html: `🏁 <b>Ziel erreicht.</b> Gute Fahrt gehabt!`, say: 'Ziel erreicht. Gute Fahrt.' };
+  if (restM < 900) { const dk = fmtKm(restM / 1000); return { key: 'near', html: `🏁 Ziel in <b>${dk}</b> — Anlegen vorbereiten.`, say: `Ziel in ${dk}. Anlegen vorbereiten.` }; }
+  const dk = fmtKm(restM / 1000);
+  return { key: 'go:' + Math.round(restM / 500), html: `➡️ Dem Verlauf folgen · Ziel in <b>${dk}</b>.`, say: '' };
+}
+function navUpdate(pos: LngLat, brg: number, s: number, realSpeedKmh: number | null) {
+  if (!lastRoute) return;
+  const restKm = Math.max(0, navTotM - s) / 1000;
+  const remLocks = (lastRoute.lockPts || []).filter(l => l.km * 1000 > s + 80).length;
+  const cruise = realSpeedKmh && realSpeedKmh > 1.5 ? realSpeedKmh : 9;
+  const etaMin = restKm / cruise * 60 + remLocks * 20;
+  const arr = new Date(Date.now() + etaMin * 60000);
+  const set = (id: string, v: string) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  set('nvSpeed', realSpeedKmh != null ? (realSpeedKmh >= 1 ? Math.round(realSpeedKmh) + ' km/h' : '0 km/h') : '~9 km/h');
+  set('nvHead', Math.round((brg + 360) % 360) + '°');
+  set('nvRest', fmtKm(restKm));
+  set('nvEta', arr.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }));
+  const h = navHint(s);
+  if (h.key !== lastHintKey) {
+    lastHintKey = h.key;
+    const el = document.getElementById('nvHint'); if (el) el.innerHTML = h.html;
+    const lil = document.getElementById('nvLilly'); if (lil) { lil.classList.remove('pulse'); void (lil as HTMLElement).offsetWidth; lil.classList.add('pulse'); }
+    speak(h.say);
+  }
+  ensureBoat().setLngLat(pos).setRotation((brg + 360) % 360);
+  const now = performance.now();
+  if (now - navCamTs > 200) { navCamTs = now; API!.map.easeTo({ center: pos, bearing: (brg + 360) % 360, pitch: 56, duration: 260, essential: true } as any); }
+}
+function previewTick(ts: number) {
+  if (!navOn) return;
+  if (!navPrevTs) navPrevTs = ts;
+  const dt = Math.min(0.1, (ts - navPrevTs) / 1000); navPrevTs = ts;
+  navS += navPlayMps * dt;
+  const reached = navS >= navTotM;
+  const { pos, brg } = navPosAt(Math.min(navS, navTotM));
+  navUpdate(pos, brg, Math.min(navS, navTotM), null);
+  if (reached) { finishNav(); return; }
+  navRaf = requestAnimationFrame(previewTick);
+}
+function startLiveWatch() {
+  if (!navigator.geolocation) { flashHint('GPS nicht verfügbar — nutze die Vorschau.'); return; }
+  flashHint('🧭 Live-Navigation — die Karte folgt deiner Fahrt.');
+  let lastPos: LngLat | null = null;
+  navWatch = navigator.geolocation.watchPosition(p => {
+    if (!navOn) return;
+    const pos: LngLat = [p.coords.longitude, p.coords.latitude];
+    let brg = p.coords.heading as number | null;
+    if (brg == null || isNaN(brg)) brg = lastPos ? bearingOf(lastPos, pos) : navPosAt(navNearestS(pos)).brg;
+    lastPos = pos;
+    const spdKmh = p.coords.speed != null && !isNaN(p.coords.speed) ? p.coords.speed * 3.6 : null;
+    navUpdate(pos, brg, navNearestS(pos), spdKmh);
+  }, () => { flashHint('GPS-Signal fehlt gerade — Vorschau („Tour abspielen") nutzen?'); }, { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 });
+}
+function finishNav() {
+  const el = document.getElementById('nvHint'); if (el) el.innerHTML = '🏁 <b>Ziel erreicht.</b> Gute Fahrt!';
+  speak('Ziel erreicht. Gute Fahrt.');
+  setTimeout(stopNav, 2600);
+}
+function startNav(source: NavSource) {
+  if (!API || !lastRoute || lastRoute.coords.length < 2) { flashHint('Erst Start & Ziel setzen — dann „Tour abspielen".'); return; }
+  stopNav();
+  navOn = true;
+  navParam(lastRoute.coords); navSeg = 1; navS = 0; lastHintKey = ''; navPrevTs = 0; navCamTs = 0;
+  navSavedCam = { pitch: API.map.getPitch(), bearing: API.map.getBearing() };
+  navUI(true);
+  const start = navPosAt(0);
+  ensureBoat().setLngLat(start.pos).setRotation((start.brg + 360) % 360).addTo(API.map);
+  API.map.flyTo({ center: start.pos, zoom: 14, pitch: 56, bearing: (start.brg + 360) % 360, duration: 900, essential: true } as any);
+  const ew = elwisOnRoute(lastRoute);
+  setTimeout(() => {
+    if (!navOn) return;
+    if (ew.count > 0) { const el = document.getElementById('nvHint'); if (el) el.innerHTML = `⚠️ <b>${ew.count} ELWIS-Hinweis${ew.count > 1 ? 'e' : ''}</b> auf der Route — aufmerksam fahren.`; lastHintKey = 'elwis'; speak(`Achtung: ${ew.count} ELWIS Hinweis auf der Route.`); }
+  }, 1000);
+  if (source === 'preview') {
+    const durSec = Math.min(30, Math.max(12, navTotM / 220));
+    navPlayMps = navTotM / durSec;
+    navRaf = requestAnimationFrame(previewTick);
+    flashHint('▶ Vorschau läuft — so verläuft deine Tour.');
+  } else { startLiveWatch(); }
+}
+function stopNav() {
+  navOn = false;
+  if (navRaf) { cancelAnimationFrame(navRaf); navRaf = 0; }
+  if (navWatch && navigator.geolocation) { try { navigator.geolocation.clearWatch(navWatch); } catch { /* ignore */ } navWatch = 0; }
+  try { speechSynthesis.cancel(); } catch { /* ignore */ }
+  if (boat) { try { boat.remove(); } catch { /* ignore */ } boat = null; }
+  navUI(false);
+  lastHintKey = ''; navPrevTs = 0;
+  if (API && navSavedCam) {
+    if (captainOn) API.map.easeTo({ pitch: 56, bearing: navSavedCam.bearing, duration: 600 });
+    else API.map.easeTo({ pitch: 0, bearing: 0, duration: 600 });
+  }
+}
+
 function marker(slot: 'A' | 'B', ll: LngLat) {
   const color = slot === 'A' ? '#27c08d' : '#D9B14D';
   const m = new maplibregl.Marker({ color }).setLngLat(ll).addTo(API!.map);
@@ -297,13 +474,16 @@ function renderSummary(r: RouteResult | null) {
     ${timeline(r, d)}
     ${detour}${ew.html}${sunsetRow()}${renderAlong(d)}${locks}${conn}${snap}
     <div class="rt-sum-acts">
-      <button type="button" data-act="share" class="rt-act" title="Route als Link teilen">📤 Route teilen</button>
+      <button type="button" data-act="preview" class="rt-act rt-act-go" title="Tour als 3D-Vorschau abspielen — Boot fährt die Route ab">▶ Tour abspielen</button>
+      <button type="button" data-act="live" class="rt-act" title="Live-Navigation mit GPS — Karte folgt deiner Fahrt (Fahrtrichtung oben)">🧭 Live</button>
+      <button type="button" data-act="share" class="rt-act" title="Route als Link teilen">📤 Teilen</button>
       <button type="button" data-act="gpx" class="rt-act" title="Als GPX für Kartenplotter/Navi-App exportieren">⬇️ GPX</button>
     </div>
     <p class="rt-sum-note">Planungshilfe entlang gemappter schiffbarer Wege (OSM). <b>Keine Navigationsgrundlage</b> — verbindlich bleiben ELWIS-Meldungen, amtliche Fahrrinne & Befahrensregeln. Aktuelle Sperrungen siehe „Amtliche Lage".</p>`;
 }
 
 function clearRoute() {
+  stopNav();
   A = B = null; pick = null;
   mA?.remove(); mB?.remove(); mA = mB = null;
   setRouteGeom([], []);
@@ -421,6 +601,7 @@ export function initRoute(api: MapAPI, noticesProvider?: () => { notices: Notice
     const t = (e.target as HTMLElement).closest('[data-act]'); if (!t) return;
     const act = t.getAttribute('data-act');
     if (act === 'gpx') exportGpx(); else if (act === 'share') shareRoute();
+    else if (act === 'preview') startNav('preview'); else if (act === 'live') startNav('live');
   });
   /* Geteilter Deep-Link ?a=lng,lat&b=lng,lat → Auto-Route */
   try {
