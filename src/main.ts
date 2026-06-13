@@ -3,7 +3,7 @@ import './styles/app.css';
 import { fetchNotices, fetchNoticesDE, fetchFT, fetchPegel, fetchWeather, activeToday } from './lib/live';
 import { combine } from './lib/ampel';
 import { initMap, addNoticeMarkers, KINDS, GROUPS, LAENDER, type MapAPI } from './map/map';
-import { renderModes, MODES } from './ui/modes';
+import { renderModes, MODES, currentMode } from './ui/modes';
 import { renderWetter, renderPegel, renderFT, initTiefe } from './ui/dashboard';
 import { renderMeldungen } from './ui/meldungen';
 import { initExplorer } from './ui/explorer';
@@ -17,6 +17,8 @@ import { initRoute } from './ui/route';
 import { initEarlyAccess } from './ui/earlyaccess';
 import { initGamification } from './ui/gamification';
 import { initAcademy } from './ui/academy';
+import { initChecklists } from './ui/checklists';
+import { saveSnapshot, loadSnapshot, snapTime } from './lib/snapshot';
 import { initPWA } from './lib/pwa';
 import { initShare } from './ui/share';
 import { initLegal } from './ui/legal';
@@ -171,15 +173,20 @@ async function boot() {
   initNav();
   initCommunity();
   initTouren();
+  initChecklists();
   initMelden(()=>setTimeout(initCommunity, 1200));
   renderSky(null);
   const mapP = initMap('map').catch(e => { console.error('Karte konnte nicht geladen werden', e); return null; });
-  const [w, doc, ft, deDoc] = await Promise.all([fetchWeather(), fetchNotices(), fetchFT(), fetchNoticesDE()]);
+  let [w, doc, ft, deDoc] = await Promise.all([fetchWeather(), fetchNotices(), fetchFT(), fetchNoticesDE()]);
+  let snapNote = '';
+  if (w || doc || ft) saveSnapshot({ w, doc, ft });                    // letzte Live-Lage sichern (für Offline)
+  else { const s = loadSnapshot(); if (s) { w = s.w; doc = s.doc; ft = s.ft; snapNote = `📡 Offline · Stand letzter Abruf ${snapTime(s.ts)} Uhr — keine Live-Daten`; } }
   (window as any).__wlw = w;
   if (w) applyTod(w.sunrise, w.sunset);
   renderSky(w); startSkyTicker(()=>w);
   const state = combine(w, doc?.notices ?? null);
   setAmpel(state); setReco(state, doc, w); setChips(w, doc, ft);
+  if (snapNote) { const _src = document.getElementById('ampelSrc'); if (_src) _src.textContent = snapNote; }
   renderMeldungen(doc, deDoc); renderWetter(w); initFooter(w); renderFT(ft); initTiefe();
   initEarlyAccess(); initGamification(); initAcademy(); initShare(); initLegal();
   fetch(`${import.meta.env.BASE_URL}data/pegel.json`).then(r=>r.json()).then(async (pj)=>{
@@ -190,7 +197,7 @@ async function boot() {
   const api = await mapP;
   if (api) {
     renderModes(document.getElementById('modes')!, (m)=>{ api.setKinds(new Set(m.kinds)); renderLegend(api); });
-    api.setKinds(new Set(MODES[0].kinds)); renderLegend(api); initMapControls(api);
+    api.setKinds(new Set(currentMode().kinds)); renderLegend(api); initMapControls(api);
     if (doc) { try { addNoticeMarkers(api, doc.notices.filter(activeToday).filter(n=>n.type!=='yellow')); } catch(e) { console.error(e); } }
     /* Explorer aus derselben Quelle wie die Karte */
     fetch(`${import.meta.env.BASE_URL}data/pois.geojson`).then(r=>r.json()).then(fc => {

@@ -516,6 +516,7 @@ async function compute() {
     else {
       setRouteGeom(r.waterSegs, r.connectorSegs);
       lastRoute = r;
+      saveLastRoute(A!, B!, r);
       const b = r.coords.reduce((acc, c) => [Math.min(acc[0], c[0]), Math.min(acc[1], c[1]), Math.max(acc[2], c[0]), Math.max(acc[3], c[1])],
         [180, 90, -180, -90]);
       const fb: any = { padding: captainOn ? { top: 150, bottom: 90, left: 60, right: 60 } : 70, duration: 1200 };
@@ -699,6 +700,40 @@ function renderSummary(r: RouteResult | null) {
     <p class="rt-sum-note">Planungshilfe entlang gemappter schiffbarer Wege (OSM). <b>Keine Navigationsgrundlage</b> — verbindlich bleiben ELWIS-Meldungen, amtliche Fahrrinne & Befahrensregeln. Aktuelle Sperrungen siehe „Amtliche Lage".</p>`;
 }
 
+/* Letzte Route lokal sichern (downgesampelt) — für Offline-Wiederherstellung (Phase 3). */
+function saveLastRoute(a: LngLat, b: LngLat, r: RouteResult) {
+  try {
+    const step = Math.max(1, Math.ceil(r.coords.length / 400));
+    const coords = r.coords.filter((_, i) => i % step === 0);
+    const last = r.coords[r.coords.length - 1]; if (coords[coords.length - 1] !== last) coords.push(last);
+    localStorage.setItem('wl3_last_route', JSON.stringify({ ts: Date.now(), a, b,
+      aName: $('rtAtxt')?.textContent || 'Start', bName: $('rtBtxt')?.textContent || 'Ziel',
+      km: r.distanceKm, min: r.durationMin, locks: r.locks.length, coords }));
+    const lb = $('rtLast'); if (lb) lb.hidden = false;
+  } catch { /* Quota o. ä. */ }
+}
+/* Gespeicherte Route wieder anzeigen — funktioniert offline (zeichnet gespeicherte Geometrie, keine Neuberechnung). */
+function restoreLastRoute() {
+  let s: any; try { s = JSON.parse(localStorage.getItem('wl3_last_route') || 'null'); } catch { return; }
+  if (!s || !Array.isArray(s.coords) || s.coords.length < 2) { flashHint('Noch keine gespeicherte Route vorhanden.'); return; }
+  if (!API) return;
+  ensureLayers(API.map);
+  A = s.a; B = s.b;
+  marker('A', s.a); marker('B', s.b);
+  const at = $('rtAtxt'); if (at) at.textContent = s.aName || 'Start';
+  const bt = $('rtBtxt'); if (bt) bt.textContent = s.bName || 'Ziel';
+  const cl = $('rtClear'); if (cl) cl.hidden = false;
+  setRouteGeom([s.coords], []);
+  const bb = (s.coords as LngLat[]).reduce((p, c) => [Math.min(p[0], c[0]), Math.min(p[1], c[1]), Math.max(p[2], c[0]), Math.max(p[3], c[1])], [180, 90, -180, -90]);
+  API.map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], { padding: 70, duration: 800 });
+  const stand = new Date(s.ts).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const el = $('routeSummary'); if (el) { el.hidden = false;
+    el.innerHTML = `<div class="rt-sum-head">↺ Letzte Route <span class="rt-beta">offline gespeichert</span></div>
+      <div class="rt-sum-big"><b>${fmtKm(s.km)}</b> · ~${fmtMin(s.min)}<span class="rt-sum-sub">${s.locks ? `${s.locks} Schleuse${s.locks > 1 ? 'n' : ''} · ` : ''}Stand ${stand} Uhr</span></div>
+      <p class="rt-sum-note">Gespeicherte Route — offline verfügbar. Für eine frische Berechnung Start &amp; Ziel erneut antippen (online). Verbindlich bleiben ELWIS &amp; amtliche Fahrrinne.</p>`; }
+  flashHint('↺ Letzte Route wiederhergestellt (offline gespeichert).');
+}
+
 function clearRoute() {
   stopNav();
   A = B = null; pick = null;
@@ -814,6 +849,9 @@ export function initRoute(api: MapAPI, noticesProvider?: () => { notices: Notice
   $('rtClear')?.addEventListener('click', clearRoute);
   $('rtNet')?.addEventListener('click', toggleNet);
   $('rtView')?.addEventListener('click', toggleCaptain);
+  $('rtLast')?.addEventListener('click', restoreLastRoute);
+  try { if (localStorage.getItem('wl3_last_route')) { const _lb = $('rtLast'); if (_lb) _lb.hidden = false; } } catch { /* */ }
+  try { if (!navigator.onLine && !new URLSearchParams(location.search).get('a') && localStorage.getItem('wl3_last_route')) setTimeout(() => restoreLastRoute(), 500); } catch { /* */ }
   updateViewBtn();
   if (captainOn) { try { API.map.once('idle', () => applyCaptain(false)); } catch { applyCaptain(false); } }
   $('routeSummary')?.addEventListener('click', (e) => {

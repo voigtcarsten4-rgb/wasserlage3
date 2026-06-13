@@ -3,6 +3,7 @@
  * Antworten kommen AUS echten Live-Daten — keine Fake-Antworten. Verbindlich bleibt ELWIS. */
 import type { Weather, NoticesDoc } from '../lib/live';
 import { activeToday } from '../lib/live';
+import { checklistFor } from './checklists';
 
 export interface NeleState {
   weather: () => Weather | null;
@@ -41,6 +42,8 @@ function wetterTxt(s: NeleState): string {
   return `Aktuell ${w.temp} °C, Wind ${w.bft} Bft aus ${w.dir} (${w.kmh} km/h), Böen bis ${w.gust} km/h.${warn} Sonne ↑ ${w.sunrise} · ↓ ${w.sunset} Uhr.`;
 }
 
+/* Modusabhängige Checkliste (Zielgruppen-Intelligenz) — offline verfügbar */
+function checklistTxt(): string { const c = checklistFor(); return `<b>${E(c.title)}:</b><br>` + c.items.map(i => '• ' + E(i)).join('<br>'); }
 const KNOW: Record<string,string> = {
   checkliste: `<b>Vor-Abfahrt-Checkliste:</b><br>• Wetter & Wind geprüft, Tankfüllung ausreichend<br>• Rettungswesten an Bord & griffbereit, Kinder angelegt<br>• Leinen, Fender, Anker klar · Bordwerkzeug & Pumpe<br>• Funk/Handy geladen · Erste-Hilfe & Feuerlöscher geprüft<br>• Lichter funktionieren · Crew kennt Mann-über-Bord-Plan<br>• Fahrtgebiet & Schleusenzeiten bekannt`,
   notfall: `<b>Notfall auf dem Wasser:</b><br>• Europaweiter Notruf <b>112</b><br>• UKW-Seefunk: Kanal <b>16</b> (Not/Anruf), DSC-Notruf via Kanal 70<br>• Wasserschutzpolizei über 110<br>• Mann über Bord: Position merken, Boje werfen, Person im Blick, langsam wenden<br>• Position so genau wie möglich durchgeben (GPS – „Sicherheitsanker").`,
@@ -60,7 +63,7 @@ const QUESTIONS: QA[] = [
   { q: 'Wo kann ich anlegen?', icon: '⚓', a: (s) => nearby(s, ['gelbe_welle', 'hafen', 'anleger'], 'Gastliegeplätze') },
   { q: 'Wo kann ich baden?', icon: '🏖️', a: (s) => nearby(s, ['badestelle'], 'Badestellen') },
   { q: 'Wo esse ich gut?', icon: '🍽️', a: (s) => nearby(s, ['gastro'], 'Gastronomie am Wasser') },
-  { q: 'Vor-Abfahrt-Checkliste', icon: '✅', a: () => KNOW.checkliste, offline: true },
+  { q: 'Vor-Abfahrt-Checkliste', icon: '✅', a: () => checklistTxt(), offline: true },
   { q: 'Notfall & Hilfe', icon: '🆘', a: () => KNOW.notfall, offline: true },
   { q: 'Sicherheitsregeln', icon: '🛟', a: () => KNOW.sicherheit, offline: true },
   { q: 'Wie läuft eine Schleuse?', icon: '🚪', a: () => KNOW.schleuse, offline: true },
@@ -77,7 +80,7 @@ function localAnswer(s: NeleState, q: string): string | Promise<string> | null {
   if (/anleg|liege|hafen|marina|festmach|gastlieg|gelbe welle/.test(t)) return nearby(s, ['gelbe_welle','hafen','anleger'], 'Gastliegeplätze');
   if (/bade|schwimm|strand/.test(t)) return nearby(s, ['badestelle'], 'Badestellen');
   if (/essen|restaurant|gastro|café|cafe|hunger|einkehr/.test(t)) return nearby(s, ['gastro'], 'Gastronomie am Wasser');
-  if (/check|abfahrt|vor.*los/.test(t)) return KNOW.checkliste;
+  if (/check|abfahrt|vor.*los/.test(t)) return checklistTxt();
   if (/notfall|hilfe|112|mann über bord|mob|unfall/.test(t)) return KNOW.notfall;
   if (/sicher|regel|vorfahrt|ausweich/.test(t)) return KNOW.sicherheit;
   if (/schleus/.test(t)) return KNOW.schleuse;
