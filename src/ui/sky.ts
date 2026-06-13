@@ -16,6 +16,8 @@ export function renderSky(w: Weather|null) {
   const ang = Math.PI * (1 - tt);
   const cx = 110 + 95 * Math.cos(ang), cy = 105 - 95 * Math.sin(ang);
   dot.setAttribute('cx', String(cx.toFixed(1))); dot.setAttribute('cy', String(cy.toFixed(1)));
+  const arm = document.getElementById('sextArm'); if (arm) { arm.setAttribute('x2', cx.toFixed(1)); arm.setAttribute('y2', cy.toFixed(1)); }
+  const halo = document.getElementById('sunHalo'); if (halo) { halo.setAttribute('cx', cx.toFixed(1)); halo.setAttribute('cy', cy.toFixed(1)); }
   t1.textContent = now.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
   if (t2) t2.textContent = day ? '☀ SONNENSTAND' : '☾ MONDWACHE';
   if (srT && w) srT.textContent = '↑ ' + w.sunrise; if (suT && w) suT.textContent = '↓ ' + w.sunset;
