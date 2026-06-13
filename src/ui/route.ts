@@ -8,6 +8,7 @@ import { activeToday, type Notice } from '../lib/live';
 import { fetchGeoReports, getCachedReports, relAge, type GeoReport } from '../lib/reports';
 import { loadLockHours, lockHoursFor, loadSpeedZones, speedForWaterways } from '../lib/datamodel';
 import { currentMode } from './modes';
+import { windAdvice } from '../lib/wind';
 
 let API: MapAPI | null = null;
 let getNotices: (() => { notices: Notice[] } | null) | null = null;
@@ -476,7 +477,10 @@ function startNav(source: NavSource) {
   const cw = communityOnRoute(lastRoute);
   if (cw.danger > 0) notices.push({ html: `⚠️ <b>${cw.danger} Community-Gefahr${cw.danger > 1 ? 'en' : ''}</b> auf der Route — bitte aufmerksam fahren.`, say: `Achtung: ${cw.danger} Community Gefahr auf der Route.` });
   const sun = sunsetWarn(lastRoute); if (sun) notices.push(sun);
-  const wind = windFreshenNote(); if (wind) notices.push(wind);
+  const _w = (window as any).__wlw;
+  const _wa = _w ? windAdvice(currentMode().id, _w) : null;
+  if (_wa && _wa.lvl >= 1) notices.push({ html: _wa.html, say: _wa.say });   // aktuelle, boots-spezifische Wind-Lage zuerst
+  else { const wind = windFreshenNote(); if (wind) notices.push(wind); }      // sonst: Vorhersage „Wind frischt auf"
   showStartupNotices(notices);
   if (source === 'preview') {
     const durSec = Math.min(30, Math.max(12, navTotM / 220));
@@ -727,6 +731,9 @@ function renderSummary(r: RouteResult | null) {
     return;
   }
   const d = alongData(r); const ew = elwisOnRoute(r); const cm = communityOnRoute(r); const spd = speedForWaterways(r.waterways);
+  const _w = (window as any).__wlw;   // zielgruppen-kalibrierte Wind-Lage für genau dieses Boot (Planungs-Skipper)
+  const _wa = _w ? windAdvice(currentMode().id, _w) : null;
+  const windRow = _wa && _wa.lvl >= 1 ? `<div class="rt-sum-row${_wa.lvl === 2 ? ' warn' : ''}">${_wa.html}</div>` : '';
   const lockHrs = r.locks.map(n => { const h = lockHoursFor(n); return h ? `${E(n)} <span class="rt-lock-hrs">(${E(h.times || h.season || 'Zeiten s. Quelle')})</span>` : E(n); });
   const locks = r.locks.length
     ? `<div class="rt-sum-row">🚪 <b>${r.locks.length} Schleuse${r.locks.length > 1 ? 'n' : ''}</b> <span>${lockHrs.join(' · ')}</span></div>` : '';
@@ -740,6 +747,7 @@ function renderSummary(r: RouteResult | null) {
   el.innerHTML = `
     <div class="rt-sum-head">🚤 Route auf dem Wasser <span class="rt-beta">Beta</span></div>
     ${lillyLine(r, d, ew.count)}
+    ${windRow}
     <div class="rt-sum-big"${detourBad ? ' style="opacity:.6"' : ''}><b>${fmtKm(r.distanceKm)}</b> · ~${fmtMin(r.durationMin)}
       <span class="rt-sum-sub">bei ~9 km/h inkl. ~20 min/Schleuse · Luftlinie ${fmtKm(r.crowKm)}</span></div>
     ${routeStory(r)}

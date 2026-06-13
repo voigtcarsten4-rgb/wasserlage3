@@ -2,6 +2,7 @@
 import './styles/app.css';
 import { fetchNotices, fetchNoticesDE, fetchFT, fetchPegel, fetchWeather, activeToday } from './lib/live';
 import { combine } from './lib/ampel';
+import { windAdvice } from './lib/wind';
 import { initMap, addNoticeMarkers, KINDS, GROUPS, LAENDER, type MapAPI } from './map/map';
 import { renderModes, MODES, currentMode } from './ui/modes';
 import { renderWetter, renderPegel, renderFT, initTiefe } from './ui/dashboard';
@@ -45,9 +46,9 @@ function setReco(state:{cls:string}, doc:any, w:any) {
   if (state.cls==='ok') { el.textContent = '✅ Heute spricht aus amtlicher Sicht nichts gegen eine Fahrt — Sperrungen auf der Route trotzdem unten prüfen.'; return; }
   const act = doc ? doc.notices.filter(activeToday).filter((n:any)=>n.type==='red') : [];
   const first = act[0];
-  el.textContent = state.cls==='danger'
-    ? `⚠️ Fahrt möglich, aber plane um: ${first ? first.waterway + ' — ' + String(first.description||'').slice(0,90) + '…' : 'aktive Sperrungen im Revier'} — Details unten.`
-    : (w && w.bft>=4 ? '🟡 Frischer Wind — kleine Boote, SUP & Kajak heute mit Vorsicht.' : '🟡 Einschränkungen beachten — Details unten in der amtlichen Lage.');
+  if (state.cls==='danger') { el.textContent = `⚠️ Fahrt möglich, aber plane um: ${first ? first.waterway + ' — ' + String(first.description||'').slice(0,90) + '…' : 'aktive Sperrungen im Revier'} — Details unten.`; return; }
+  const wa = w ? windAdvice(currentMode().id, w) : null;   // zielgruppen-kalibrierter Wind statt pauschalem bft>=4
+  el.textContent = wa && wa.lvl >= 1 ? '🟡 ' + wa.text : '🟡 Einschränkungen beachten — Details unten in der amtlichen Lage.';
 }
 function setChips(w: any, doc: any, ft: any) {
   const chips: string[] = [];
@@ -170,7 +171,12 @@ function initReveal() {
 function applyAudience() {
   const m = currentMode();
   const el = document.getElementById('modeFocus');
-  if (el) { el.hidden = false; el.innerHTML = `<b>${m.label}</b> — du siehst v.a. ${m.focus}. <span class="mf-reco">${m.reco}</span>`; }
+  if (!el) return;
+  const w = (window as any).__wlw;
+  const wa = w ? windAdvice(m.id, w) : null;   // sofortige, boots-spezifische Wind-Einordnung beim Moduswechsel
+  const windChip = wa && wa.lvl >= 1 ? ` <span class="mf-wind ${wa.cls}">${wa.short}</span>` : '';
+  el.hidden = false;
+  el.innerHTML = `<b>${m.label}</b> — du siehst v.a. ${m.focus}. <span class="mf-reco">${m.reco}</span>${windChip}`;
 }
 async function boot() {
   applyTod();
