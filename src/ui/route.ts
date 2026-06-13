@@ -743,7 +743,7 @@ function renderSummary(r: RouteResult | null) {
     <div class="rt-sum-big"${detourBad ? ' style="opacity:.6"' : ''}><b>${fmtKm(r.distanceKm)}</b> · ~${fmtMin(r.durationMin)}
       <span class="rt-sum-sub">bei ~9 km/h inkl. ~20 min/Schleuse · Luftlinie ${fmtKm(r.crowKm)}</span></div>
     ${routeStory(r)}
-    ${detour}${spd ? `<div class="rt-sum-row">🚦 Zulässig hier max. <b>${spd.kmh} km/h</b>${spd.note ? ' · ' + E(spd.note) : ''}</div>` : ''}${ew.html}${cm.html}${sunsetRow()}${renderAlong(d)}${locks}${conn}${snap}
+    ${detour}${spd ? `<div class="rt-sum-row">🚦 Zulässig hier max. <b>${spd.kmh} km/h</b>${spd.note ? ' · ' + E(spd.note) : ''}</div>` : ''}${ew.html}${cm.html}${locks}${conn}${snap}
     ${tipNav()}
     <div class="rt-sum-acts">
       <button type="button" data-act="preview" class="rt-act rt-act-go" title="Tour als 3D-Vorschau abspielen — Boot fährt die Route ab">▶ Tour abspielen</button>
