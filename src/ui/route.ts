@@ -156,7 +156,7 @@ let boat: maplibregl.Marker | null = null;
 let speakOn = false; let lastHintKey = ''; let navSavedCam: any = null;
 /* Vorberechnete Ereignisse entlang der Route (Schleusen + Korridor-POIs), nach Strecke sortiert.
  * prio 1=Sicherheit/Pflicht · 2=Nutzen/Versorgung · 3=Erlebnis. side: -1 backbord · 0 voraus · +1 steuerbord. */
-interface NavEvt { s: number; prio: 1 | 2 | 3; icon: string; label: string; name: string; side: number; perp: number; kind: string; key: string; meta?: { ageH?: number; confirmed?: boolean; body?: string } }
+interface NavEvt { s: number; prio: 1 | 2 | 3; icon: string; label: string; name: string; side: number; perp: number; kind: string; key: string; meta?: { ageH?: number; confirmed?: boolean; body?: string; lastFuel?: boolean } }
 let navEvents: NavEvt[] = [];
 const navEvtSaid = new Set<string>();
 let navHoldUntil = 0;            // hält Start-Hinweise (ELWIS/Sonnenuntergang) kurz, bevor Bewegungshinweise übernehmen
@@ -297,6 +297,8 @@ function buildNavEvents() {
         meta: { ageH: rep.ageH, confirmed: rep.confirmed, body: rep.body } });
     }
   }
+  const tanks = navEvents.filter(e => e.kind === 'tank').sort((a, b) => a.s - b.s);
+  if (tanks.length) tanks[tanks.length - 1].meta = { ...(tanks[tanks.length - 1].meta || {}), lastFuel: true };  // letzte Tankmöglichkeit markieren
   navEvents.sort((a, b) => a.s - b.s);
 }
 /* Community-Kategorie → Copilot-Ereignis (1=Gefahr/Pflicht · 2=Nutzen · 3=Erlebnis) */
@@ -325,7 +327,9 @@ function phrase(e: NavEvt, dM: number): { html: string; say: string } {
     case 'anleger': return { html: `🪢 ${cap(side)} liegt <b>${E(e.name)}</b> — Gastanleger.`, say: `${side}: Gastanleger ${e.name}.` };
     case 'gastro': return { html: `🍽️ Auf deiner Route liegt <b>${E(e.name)}</b>. Gut für eine Pause am Wasser.`, say: `${e.name}. Gut für eine Pause am Wasser.` };
     case 'badestelle': return { html: `🏖️ ${cap(side)} liegt eine <b>Badestelle</b>. Schön für eine kurze Pause.`, say: `${side}: Badestelle. Schön für eine kurze Pause.` };
-    case 'tank': return { html: `⛽ <b>Tankstelle</b> ${side} in <b>${dk}</b>.`, say: `Tankstelle ${side}, in ${dk}.` };
+    case 'tank': return e.meta?.lastFuel
+      ? { html: `⛽ <b>Letzte Tankmöglichkeit</b> ${side} in <b>${dk}</b> — jetzt auffüllen.`, say: `Letzte Tankmöglichkeit ${side}, in ${dk}.` }
+      : { html: `⛽ <b>Tankstelle</b> ${side} in <b>${dk}</b>.`, say: `Tankstelle ${side}, in ${dk}.` };
     case 'sight': return { html: `🏰 ${cap(side)} liegt <b>${E(e.name)}</b> — sehenswert.`, say: `${side}: ${e.name}. Sehenswert.` };
     case 'entsorgung': case 'werkstatt': case 'slip': case 'shop': return { html: `${e.icon} <b>${E(e.label)}</b> ${side}: ${E(e.name)}.`, say: `${e.label} ${side}.` };
     default: return { html: `${e.icon} ${cap(side)}: <b>${E(e.name)}</b>.`, say: `${e.name} ${side}.` };
@@ -346,6 +350,8 @@ function navHint(s: number): { key: string; html: string; say: string } {
   if (restM < 120) return { key: 'ziel', html: `🏁 <b>Ziel erreicht.</b> Gute Fahrt gehabt!`, say: 'Ziel erreicht. Gute Fahrt.' };
   if (restM < 900) { const dk = fmtKm(restM / 1000); return { key: 'near', html: `🏁 Ziel in <b>${dk}</b> — Anlegen vorbereiten.`, say: `Ziel in ${dk}. Anlegen vorbereiten.` }; }
   const dk = fmtKm(restM / 1000);
+  const ss = sunsetCountdown();
+  if (ss) return { key: 'sun:' + Math.round(ss / 5), html: `🌅 Sonnenuntergang in <b>${ss} Min</b> — Lichterführung vorbereiten. Ziel in ${dk}.`, say: ss <= 30 ? `Sonnenuntergang in ${ss} Minuten.` : '' };
   return { key: 'go:' + Math.round(restM / 500), html: `➡️ Dem Verlauf folgen · Ziel in <b>${dk}</b>.`, say: '' };
 }
 /* „Als Nächstes"-Liste (max 3, ausklappbar) — gedrosselt & nur bei Änderung neu gerendert (Performance) */
@@ -470,6 +476,7 @@ function startNav(source: NavSource) {
   const cw = communityOnRoute(lastRoute);
   if (cw.danger > 0) notices.push({ html: `⚠️ <b>${cw.danger} Community-Gefahr${cw.danger > 1 ? 'en' : ''}</b> auf der Route — bitte aufmerksam fahren.`, say: `Achtung: ${cw.danger} Community Gefahr auf der Route.` });
   const sun = sunsetWarn(lastRoute); if (sun) notices.push(sun);
+  const wind = windFreshenNote(); if (wind) notices.push(wind);
   showStartupNotices(notices);
   if (source === 'preview') {
     const durSec = Math.min(30, Math.max(12, navTotM / 220));
@@ -666,6 +673,50 @@ function tipNav(): string {
   try { if (localStorage.getItem('wl3_tip_nav') === '1') return ''; } catch { /* ignore */ }
   return `<div class="rt-tip" id="rtTip">✨ <b>Neu:</b> Tippe <b>▶ Tour abspielen</b> für eine 3D-Vorschau deiner Fahrt — oder <b>🧭 Live</b> mit GPS. <button type="button" data-act="tipclose" class="rt-tip-x" title="Hinweis schließen" aria-label="Hinweis schließen">×</button></div>`;
 }
+/* ── Release 1.0 · Route als Erlebnis + KI-Mitdenken ── */
+function etaClock(r: RouteResult): string { return new Date(Date.now() + r.durationMin * 60000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); }
+function sunsetCountdown(): number | null { const w: any = (window as any).__wlw; if (!w || !w.sunset) return null; const m = /(\d{1,2}):(\d{2})/.exec(w.sunset); if (!m) return null; const s = new Date(); s.setHours(+m[1], +m[2], 0, 0); const diff = Math.round((s.getTime() - Date.now()) / 60000); return (diff > 0 && diff <= 90) ? diff : null; }
+function windFreshenNote(): { html: string; say: string } | null { const w: any = (window as any).__wlw; if (!w || !w.daily) return null; const gustMax = w.daily.wind_gusts_10m_max?.[0]; const curGust = w.gust; if (gustMax && curGust && gustMax >= curGust + 12 && gustMax >= 30) return { html: `💨 Wind frischt heute auf — Böen bis <b>${Math.round(gustMax)} km/h</b>. Vorausschauend fahren.`, say: `Achtung, Wind frischt auf, Böen bis ${Math.round(gustMax)} Kilometer pro Stunde.` }; return null; }
+interface Station { km: number; icon: string; name: string; kind: string; why: string }
+const STORY_META: Record<string, { icon: string; why: string }> = {
+  sight: { icon: '🏰', why: 'sehenswert' }, gastro: { icon: '🍽️', why: 'Pause & Essen' }, badestelle: { icon: '🏖️', why: 'Baden' },
+  hafen: { icon: '⚓', why: 'Anlegen' }, gelbe_welle: { icon: '🌊', why: 'Gastliegeplatz' }, anleger: { icon: '🪢', why: 'Anlegen' },
+  tank: { icon: '⛽', why: 'Tanken' }, event: { icon: '🎉', why: 'Event' }, charter: { icon: '⛵', why: 'Charter' }, shop: { icon: '🛒', why: 'Proviant' }, entsorgung: { icon: '♻️', why: 'Entsorgung' },
+};
+function routeStations(r: RouteResult): Station[] {
+  if (!API || r.coords.length < 2) return [];
+  const cum: number[] = [0]; let t = 0; for (let i = 1; i < r.coords.length; i++) { t += haversineM(r.coords[i - 1], r.coords[i]); cum.push(t / 1000); }
+  const focus = new Set(currentMode().kinds);
+  let feats: any[] = []; try { feats = API.features() || []; } catch { feats = []; }
+  let minx = 180, miny = 90, maxx = -180, maxy = -90; for (const c of r.coords) { if (c[0] < minx) minx = c[0]; if (c[0] > maxx) maxx = c[0]; if (c[1] < miny) miny = c[1]; if (c[1] > maxy) maxy = c[1]; }
+  minx -= 0.02; maxx += 0.02; miny -= 0.015; maxy += 0.015;
+  const step = Math.max(1, Math.floor(r.coords.length / 300));
+  const idx: number[] = []; for (let i = 0; i < r.coords.length; i += step) idx.push(i); idx.push(r.coords.length - 1);
+  const st: Station[] = []; const seen = new Set<string>();
+  for (const f of feats) {
+    const k = f.properties?.kind; const meta = STORY_META[k]; if (!meta) continue; if (!focus.has(k) && k !== 'tank') continue;
+    const g = f.geometry; if (!g || g.type !== 'Point') continue; const ll = g.coordinates as LngLat;
+    if (ll[0] < minx || ll[0] > maxx || ll[1] < miny || ll[1] > maxy) continue;
+    let best = Infinity, bi = 0; for (const i of idx) { const d = haversineM(ll, r.coords[i]); if (d < best) { best = d; bi = i; } } if (best > 1200) continue;
+    const name = f.properties?.name || meta.why; const key = k + '|' + name; if (seen.has(key)) continue; seen.add(key);
+    st.push({ km: cum[bi], icon: meta.icon, name, kind: k, why: meta.why });
+  }
+  for (const l of (r.lockPts || [])) st.push({ km: l.km, icon: '🚪', name: l.name, kind: 'lock', why: 'Schleuse — Zeit einplanen' });
+  const fuels = st.filter(s => s.kind === 'tank').sort((a, b) => a.km - b.km); if (fuels.length) fuels[fuels.length - 1].why = 'letzte Tankmöglichkeit';
+  st.sort((a, b) => a.km - b.km);
+  const curated: Station[] = []; let lastKm = -1; const minGap = Math.max(0.3, r.distanceKm * 0.04);
+  for (const s of st) { if (s.km - lastKm < minGap && s.kind !== 'lock' && s.why !== 'letzte Tankmöglichkeit') continue; curated.push(s); lastKm = s.km; if (curated.length >= 6) break; }
+  return curated;
+}
+function routeStory(r: RouteResult): string {
+  const st = routeStations(r); const w: any = (window as any).__wlw; const m = currentMode();
+  const rows: string[] = [];
+  rows.push(`<li class="rs-row rs-end"><span class="rs-km">0</span><span class="rs-ic">🟢</span><span class="rs-tx"><b>Start</b></span></li>`);
+  for (const s of st) rows.push(`<li class="rs-row"><span class="rs-km">${fmtKm(s.km)}</span><span class="rs-ic">${s.icon}</span><span class="rs-tx"><b>${E(s.name)}</b> <em>${E(s.why)}</em></span></li>`);
+  rows.push(`<li class="rs-row rs-end"><span class="rs-km">${fmtKm(r.distanceKm)}</span><span class="rs-ic">🏁</span><span class="rs-tx"><b>Ziel</b></span></li>`);
+  const sun = w && w.sunset ? `<div class="rs-sun">🌅 Sonnenuntergang ${E(w.sunset)} Uhr · Ankunft ~${etaClock(r)} (${fmtMin(r.durationMin)})</div>` : '';
+  return `<div class="rt-story"><div class="rt-story-h">🗺️ Dein Törn <span class="rt-story-sub">für ${E(m.label)}</span></div><ul class="rt-story-list">${rows.join('')}</ul>${sun}</div>`;
+}
 function renderSummary(r: RouteResult | null) {
   const el = $('routeSummary'); if (!el) return;
   lastRoute = r;
@@ -691,7 +742,7 @@ function renderSummary(r: RouteResult | null) {
     ${lillyLine(r, d, ew.count)}
     <div class="rt-sum-big"${detourBad ? ' style="opacity:.6"' : ''}><b>${fmtKm(r.distanceKm)}</b> · ~${fmtMin(r.durationMin)}
       <span class="rt-sum-sub">bei ~9 km/h inkl. ~20 min/Schleuse · Luftlinie ${fmtKm(r.crowKm)}</span></div>
-    ${timeline(r, d)}
+    ${routeStory(r)}
     ${detour}${spd ? `<div class="rt-sum-row">🚦 Zulässig hier max. <b>${spd.kmh} km/h</b>${spd.note ? ' · ' + E(spd.note) : ''}</div>` : ''}${ew.html}${cm.html}${sunsetRow()}${renderAlong(d)}${locks}${conn}${snap}
     ${tipNav()}
     <div class="rt-sum-acts">
