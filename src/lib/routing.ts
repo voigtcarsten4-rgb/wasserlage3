@@ -37,7 +37,7 @@ export async function loadGraph(): Promise<WGraph> {
   if (G) return G;
   if (loading) return loading;
   loading = (async () => {
-    const r = await fetch(`${import.meta.env.BASE_URL}data/waterways-bb.json?v=2`);
+    const r = await fetch(`${import.meta.env.BASE_URL}data/waterways-de.json?v=3`);
     if (!r.ok) throw new Error('Wasserwege-Graph nicht ladbar (' + r.status + ')');
     const g: WGraph = await r.json();
     adj = Array.from({ length: g.nodes.length }, () => []);

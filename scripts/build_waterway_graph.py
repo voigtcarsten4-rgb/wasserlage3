@@ -10,21 +10,37 @@ except Exception: pass
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 PUB  = os.path.join(ROOT, "public", "data")
-OUT  = os.path.join(PUB, "waterways-bb.json")
+DE   = "--de" in sys.argv
+OUT  = os.path.join(PUB, "waterways-de.json" if DE else "waterways-bb.json")
+OVERPASS = os.environ.get("OVERPASS_URL", "https://overpass-api.de/api/interpreter")
 
 # S, W, N, E  (Brandenburg + Berlin, leicht gepolstert)
 BBOX = (51.30, 11.20, 53.60, 14.80)
-OVERPASS = "https://overpass-api.de/api/interpreter"
 
-QUERY = """
-[out:json][timeout:300];
-(
-  way["waterway"="canal"]["boat"!="no"](%f,%f,%f,%f);
-  way["waterway"="river"](%f,%f,%f,%f);
-);
-(._;>;);
-out body;
-""" % (BBOX*2)
+# DE-weit: 1°-Kachelgitter (viele kleine, schnelle, einzeln gecachte Overpass-Abfragen
+# statt großflächiger Bundesland-Bboxen, die bei Overpass hängen)
+def de_tiles(step=1.0):
+    S, W, N, E = 47.2, 5.8, 55.1, 15.1
+    tiles = {}; la = S
+    while la < N:
+        lo = W
+        while lo < E:
+            tiles["t%02d_%02d" % (int(round((la-S)/step)), int(round((lo-W)/step)))] = \
+                (round(la,3), round(lo,3), round(min(la+step,N),3), round(min(lo+step,E),3))
+            lo += step
+        la += step
+    return tiles
+REGIONS = {"DE": (47.20, 5.80, 55.10, 15.10)}   # eine Abfrage: schlanke Kanal+CEMT-Wirbelsäule
+# (de_tiles bleibt verfügbar für Fallback-Kachelung, falls eine Einzelabfrage scheitert)
+# BB: alle Flüsse (Lückenschluss). DE: nur schiffbare Flüsse (CEMT/ship/motorboat/boat) + Kanäle — schnell & kompakt.
+QTPL_BB = ('[out:json][timeout:240];('
+  'way["waterway"="canal"]["boat"!="no"](%f,%f,%f,%f);'
+  'way["waterway"="river"](%f,%f,%f,%f);'
+  ');(._;>;);out body;')
+QTPL_DE = ('[out:json][timeout:180];('
+  'way["waterway"="canal"]["boat"!="no"](%f,%f,%f,%f);'
+  'way["waterway"="river"]["CEMT"](%f,%f,%f,%f);'
+  ');(._;>;);out body;')
 
 def hav(a, b, c, d):
     """km zwischen (lat a,lon b) und (lat c,lon d)."""
@@ -34,25 +50,52 @@ def hav(a, b, c, d):
          math.cos(a*p)*math.cos(c*p)*math.sin((d-b)*p/2)**2)
     return R*2*math.atan2(math.sqrt(x), math.sqrt(1-x))
 
-CACHE = os.path.join(HERE, "_osm_cache.json")
-def fetch_overpass():
-    if "--cache" in sys.argv and os.path.exists(CACHE):
-        print("[1] OSM aus Cache (%s)" % CACHE, flush=True)
-        return json.load(open(CACHE, encoding="utf-8"))
-    print("[1] Overpass-Abfrage laeuft (kann 30-120s dauern) ...", flush=True)
-    data = urllib.parse.urlencode({"data": QUERY}).encode()
+def fetch_region(code, bbox):
+    cache = os.path.join(HERE, "_osm_cache_%s.json" % code)
+    if "--cache" in sys.argv and os.path.exists(cache):
+        return json.load(open(cache, encoding="utf-8"))
+    q = (QTPL_DE if DE else QTPL_BB) % (bbox*2)
+    data = urllib.parse.urlencode({"data": q}).encode()
     req = urllib.request.Request(OVERPASS, data=data,
-            headers={"User-Agent": "wasserlage3-routinggraph/1.0 (kontakt via wavebite.info)"})
-    with urllib.request.urlopen(req, timeout=320) as r:
+            headers={"User-Agent": "wasserlage3-routinggraph/1.1 (kontakt via wavebite.info)"})
+    with urllib.request.urlopen(req, timeout=300) as r:
         osm = json.load(r)
-    try: json.dump(osm, open(CACHE, "w", encoding="utf-8")); print("    Cache geschrieben.", flush=True)
+    try: json.dump(osm, open(cache, "w", encoding="utf-8"))
     except Exception: pass
     return osm
+
+def collect():
+    """Regionsweise holen (DE: 16 Länder, sonst nur BB) und global deduplizieren."""
+    regions = REGIONS if DE else {"BB": BBOX}
+    coords, ways, wseen = {}, [], set()
+    print("[1] Overpass: %d Region(en)%s ..." % (len(regions), " [--cache]" if "--cache" in sys.argv else ""), flush=True)
+    for code, bbox in regions.items():
+        try:
+            osm = fetch_region(code, bbox)
+        except Exception as ex:
+            print("    ! %s fehlgeschlagen: %s" % (code, ex), flush=True); continue
+        nadd = 0
+        for e in osm.get("elements", []):
+            if e["type"] == "node" and e["id"] not in coords:
+                coords[e["id"]] = (round(e["lon"], 6), round(e["lat"], 6)); nadd += 1
+        for e in osm.get("elements", []):
+            if e["type"] == "way" and e["id"] not in wseen:
+                wseen.add(e["id"]); nd = [n for n in e.get("nodes", []) if n in coords]
+                if len(nd) >= 2: ways.append((nd, e.get("tags", {}).get("name", "")))
+        print("    [%s] +%d Knoten (Σ %d), Σ %d Wege" % (code, nadd, len(coords), len(ways)), flush=True)
+        if DE and "--cache" not in sys.argv: time.sleep(0.5)
+    return coords, ways
 
 def load_locks():
     """Schleusen aus dem POI-Bestand (pois.geojson + BB + BE), dedupe by id."""
     locks, seen = [], set()
-    for fn in ["pois.geojson", os.path.join("de","BB.json"), os.path.join("de","BE.json")]:
+    files = ["pois.geojson"]
+    de_dir = os.path.join(PUB, "de")
+    if DE and os.path.isdir(de_dir):
+        files += [os.path.join("de", f) for f in os.listdir(de_dir) if f.endswith(".json")]
+    else:
+        files += [os.path.join("de","BB.json"), os.path.join("de","BE.json")]
+    for fn in files:
         p = os.path.join(PUB, fn)
         if not os.path.exists(p): continue
         try:
@@ -99,19 +142,8 @@ def weld(coords, ways, thr_m=25):
     return rep, new_ways
 
 def build():
-    osm = fetch_overpass()
-    els = osm.get("elements", [])
-    coords = {}            # node id -> (lng,lat)
-    ways = []              # list of (node-id list, name)
-    for e in els:
-        if e["type"] == "node":
-            coords[e["id"]] = (round(e["lon"],6), round(e["lat"],6))
-    for e in els:
-        if e["type"] == "way":
-            nd = [n for n in e.get("nodes",[]) if n in coords]
-            if len(nd) >= 2:
-                ways.append((nd, e.get("tags",{}).get("name","")))
-    print("[2] OSM: %d Knoten, %d schiffbare Wege" % (len(coords), len(ways)), flush=True)
+    coords, ways = collect()
+    print("[2] OSM gesamt: %d Knoten, %d Wege" % (len(coords), len(ways)), flush=True)
     coords, ways = weld(coords, ways)
     print("[2b] nach Verschweissung: %d Knoten" % len(coords), flush=True)
 
@@ -129,17 +161,19 @@ def build():
 
     # Schleusen auf naechsten Graphknoten snappen (<= 300 m) -> erzwungene Vertices
     locks = load_locks()
-    node_ids = list(adj.keys())
-    lock_nodes = {}        # node id -> lock name
-    snapped = 0
+    lock_nodes = {}; snapped = 0
+    cs = 0.008  # ~0,6-0,9 km Gitterzellen für schnelles Snapping
+    grid = {}
+    for n in adj:
+        lo, la = coords[n]; grid.setdefault((int(lo/cs), int(la/cs)), []).append(n)
     for lk in locks:
+        la0, lo0 = lk["lat"], lk["lng"]; cx, cy = int(lo0/cs), int(la0/cs)
         best, bestkm = None, 9e9
-        la0, lo0 = lk["lat"], lk["lng"]
-        for n in node_ids:
-            lo, la = coords[n]
-            if abs(la-la0) > 0.01 or abs(lo-lo0) > 0.016: continue  # ~1km bbox-prune
-            km = hav(la0, lo0, la, lo)
-            if km < bestkm: bestkm, best = km, n
+        for dx in (-1,0,1):
+            for dy in (-1,0,1):
+                for n in grid.get((cx+dx, cy+dy), ()):
+                    lo, la = coords[n]; km = hav(la0, lo0, la, lo)
+                    if km < bestkm: bestkm, best = km, n
         if best is not None and bestkm <= 0.30:
             lock_nodes[best] = lk["name"]; snapped += 1
     print("[3] Schleusen: %d im Bestand, %d auf Graph gesnappt (<=300m)" % (len(locks), snapped), flush=True)
@@ -327,6 +361,28 @@ def largest_component(edges):
     root = sizes[0][1]
     return {a for a,b,*_ in edges if find(a)==root} | {b for a,b,*_ in edges if find(b)==root}
 
+def _perp_m(p, a, b):
+    latc = (a[1]+b[1])/2*math.pi/180; mx = 111320*math.cos(latc); my = 110540
+    ax,ay,bx,by,px,py = a[0]*mx,a[1]*my,b[0]*mx,b[1]*my,p[0]*mx,p[1]*my
+    dx,dy = bx-ax,by-ay; L2 = dx*dx+dy*dy
+    if L2 == 0: return math.hypot(px-ax, py-ay)
+    t = ((px-ax)*dx+(py-ay)*dy)/L2; t = 0 if t<0 else 1 if t>1 else t
+    return math.hypot(px-(ax+t*dx), py-(ay+t*dy))
+def simplify(geom, tol_m=12):
+    """Douglas-Peucker — schrumpft Geometrie ohne sichtbaren Verlust bei Routing-Zoom."""
+    if len(geom) <= 2: return geom
+    keep = [False]*len(geom); keep[0] = keep[-1] = True; stack = [(0, len(geom)-1)]
+    while stack:
+        i, j = stack.pop()
+        if j <= i+1: continue
+        dmax, idx = 0.0, -1
+        for k in range(i+1, j):
+            d = _perp_m(geom[k], geom[i], geom[j])
+            if d > dmax: dmax, idx = d, k
+        if dmax > tol_m and idx > 0:
+            keep[idx] = True; stack.append((i, idx)); stack.append((idx, j))
+    return [geom[k] for k in range(len(geom)) if keep[k]]
+
 def main():
     t0 = time.time()
     coords, adj, is_vertex, lock_nodes, name_at = build()
@@ -346,7 +402,7 @@ def main():
     for e in edges:
         a, b, L, geom, nm = e[0], e[1], e[2], e[3], e[4]
         ia, ib = vix(a), vix(b)
-        row = [ia, ib, int(round(L*1000)), geom, nm]      # [a,b,len_m,geom,name]
+        row = [ia, ib, int(round(L*1000)), simplify(geom), nm]   # [a,b,len_m,geom,name]
         if len(e) > 5 and e[5]: row.append(1)             # Connector-Flag
         out_edges.append(row)
         total_km += L
@@ -357,7 +413,7 @@ def main():
 
     payload = {
         "meta": {
-            "region": "Berlin/Brandenburg", "bbox": list(BBOX),
+            "region": "Deutschland" if DE else "Berlin/Brandenburg", "bbox": list(BBOX),
             "built": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "source": "OpenStreetMap via Overpass (waterway=canal/river, schiffbar)",
             "vertices": len(nodes), "edges": len(out_edges),
@@ -366,6 +422,9 @@ def main():
         },
         "nodes": nodes, "edges": out_edges, "locks": out_locks,
     }
+    if len(nodes) < 50:
+        print("[5] ABBRUCH: nur %d Vertices — Output NICHT geschrieben (Overpass-Ausfall?). Spaeter erneut versuchen." % len(nodes), flush=True)
+        return
     os.makedirs(PUB, exist_ok=True)
     json.dump(payload, open(OUT, "w", encoding="utf-8"), separators=(",", ":"), ensure_ascii=False)
     kb = os.path.getsize(OUT)/1024

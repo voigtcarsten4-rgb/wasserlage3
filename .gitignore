@@ -2,3 +2,6 @@ node_modules/
 dist/
 dist-deployed/
 scripts/_osm_cache.json
+scripts/_osm_cache_*.json
+scripts/_de_build.log
+scripts/_de_build.err
