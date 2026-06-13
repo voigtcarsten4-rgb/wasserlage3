@@ -7,6 +7,7 @@ import { route, loadGraph, graphMeta, type LngLat, type RouteResult } from '../l
 import { activeToday, type Notice } from '../lib/live';
 import { fetchGeoReports, getCachedReports, relAge, type GeoReport } from '../lib/reports';
 import { loadLockHours, lockHoursFor, loadSpeedZones, speedForWaterways } from '../lib/datamodel';
+import { currentMode } from './modes';
 
 let API: MapAPI | null = null;
 let getNotices: (() => { notices: Notice[] } | null) | null = null;
@@ -262,8 +263,10 @@ function buildNavEvents() {
     for (const c of navCoords) { if (c[0] < minx) minx = c[0]; if (c[0] > maxx) maxx = c[0]; if (c[1] < miny) miny = c[1]; if (c[1] > maxy) maxy = c[1]; }
     minx -= 0.02; maxx += 0.02; miny -= 0.015; maxy += 0.015;
     const seen = new Set<string>();
+    const vFocus = new Set<string>([...currentMode().kinds, 'wsp', 'notfall', 'medizin', 'gelbe_welle', 'schleuse']);  // Zielgruppen-Fokus (Phase 5)
     for (const f of feats) {
       const k = f.properties?.kind; const meta = POI_META[k]; if (!meta) continue;
+      if (!vFocus.has(k)) continue;   // nur für die gewählte Zielgruppe relevante POIs im Copilot
       const g = f.geometry; if (!g || g.type !== 'Point') continue;
       const ll = g.coordinates as LngLat; if (ll[0] < minx || ll[0] > maxx || ll[1] < miny || ll[1] > maxy) continue;
       let best = Infinity, bi = 0; for (let i = 0; i < navCoords.length; i++) { const d = haversineM(ll, navCoords[i]); if (d < best) { best = d; bi = i; } }

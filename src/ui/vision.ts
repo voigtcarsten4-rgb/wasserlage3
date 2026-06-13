@@ -33,6 +33,7 @@ let orientOn = false, headingDeg: number | null = null, headingFix = false;
 let userPos: [number, number] | null = null, gpsAcc: number | null = null, gpsHeading: number | null = null, gpsSpeed: number | null = null;
 let disposeSim: (() => void) | null = null;
 let lillyTimer = 0;
+let lastCompassH = -999;
 
 interface VPoi { lng: number; lon?: number; lat: number; kind: string; name: string; dist: number; brg: number }
 
@@ -110,7 +111,7 @@ function onOrient(e: any) {
 
 export async function openVision() {
   if (root) return;
-  buildShell();
+  buildShell(); lastCompassH = -999;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const canCam = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && matchMedia('(pointer:coarse)').matches;
   let orientGranted = true;
@@ -165,7 +166,7 @@ function renderAR() {
   parts.push(userPos ? (gpsAcc != null ? `📍 ±${Math.round(gpsAcc)} m` : '📍 GPS') : '📍 kein GPS');
   parts.push(h != null ? `🧭 ${Math.round(h)}°${headingFix ? '' : ' (GPS-Kurs)'}` : '🧭 kein Kompass');
   setStatus(parts.join(' · '), weak || h == null);
-  if (cmp) renderCompass(cmp, h);
+  if (cmp) { if (h == null) { if (lastCompassH !== -999) { renderCompass(cmp, null); lastCompassH = -999; } } else if (Math.abs(h - lastCompassH) > 0.4) { lastCompassH = h; renderCompass(cmp, h); } }
   if (weak || h == null) {
     markers.innerHTML = `<div class="v-hint">${!userPos ? 'Warte auf GPS …' : gpsAcc && gpsAcc > 80 ? 'GPS zu ungenau für Peilung — bitte freie Sicht zum Himmel.' : 'Kompass nicht verfügbar — bewege dich kurz, dann nutze ich den GPS-Kurs.'}</div>`;
     if (route) route.hidden = true;
@@ -261,8 +262,8 @@ async function startSim(reduce: boolean) {
     const t = (performance.now() - t0) / 1000;
     (wMat.uniforms.t.value as number) = t; (rMat.uniforms.t.value as number) = t;
     if (!reduce) { cam.position.y = 4.2 + Math.sin(t * 0.5) * 0.18; cam.position.x = Math.sin(t * 0.22) * 1.2; cam.rotation.z = Math.sin(t * 0.3) * 0.004; }
-    simHead = (Math.sin(t * 0.05) * 18 + 360) % 360;
-    const cmpEl = document.getElementById('vCompass'); if (cmpEl) renderCompass(cmpEl, simHead);
+    const nh = (Math.sin(t * 0.05) * 18 + 360) % 360;
+    if (Math.abs(nh - lastCompassH) > 0.4) { simHead = nh; lastCompassH = nh; const cmpEl = document.getElementById('vCompass'); if (cmpEl) renderCompass(cmpEl, simHead); }
     renderer.render(scene, cam);
     raf = requestAnimationFrame(loop);
   };

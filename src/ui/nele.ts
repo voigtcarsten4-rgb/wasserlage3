@@ -4,6 +4,7 @@
 import type { Weather, NoticesDoc } from '../lib/live';
 import { activeToday } from '../lib/live';
 import { checklistFor } from './checklists';
+import { currentMode } from './modes';
 
 export interface NeleState {
   weather: () => Weather | null;
@@ -194,6 +195,7 @@ export function initNele(state: NeleState) {
     panel.hidden = false; root.classList.add('is-open');
     if (!greeted) { greeted = true;
       say('Moin! 👋 Ich bin <b>Nele</b>, deine Lotsin fürs Revier — jetzt <b>deutschlandweit</b> an Bord. Sag mir, was du vorhast: ob du heute rausfahren kannst, wo\'s eng wird, wo du tankst, anlegst, isst oder die schönste Wasser-Route findest. ⚓');
+      { const _m = currentMode(); say(`Dein Modus: <b>${_m.label}</b> — ich achte für dich vor allem auf ${_m.focus}.`); }
       if (navigator.onLine) setTimeout(() => say(reco(state)), 500);
       else setTimeout(() => say('Du bist gerade <b>offline</b> — Live-Lage & Wetter zeige ich wieder online. Checkliste, Sicherheit, Notfall, Schleuse & Revier habe ich auch ohne Netz.'), 500);
       renderChips();

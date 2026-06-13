@@ -1,15 +1,24 @@
 /* ═══ Zielgruppen-Modi · jeder Modus = Layer-Preset + Fokus ═══ */
-export interface Mode { id:string; label:string; kinds:string[] }
+export interface Mode { id:string; label:string; kinds:string[]; focus:string; reco:string }
 export const MODES: Mode[] = [
-  { id:'kapitaen',  label:'⚓ Kapitän',     kinds:['gelbe_welle','hafen','anleger','schleuse','tank','entsorgung','wsp','notfall'] },
-  { id:'hausboot',  label:'🛥️ Hausboot',    kinds:['gelbe_welle','hafen','anleger','schleuse','tank','entsorgung','gastro','shop'] },
-  { id:'familie',   label:'👨‍👩‍👧 Familie',     kinds:['badestelle','gastro','sight','event','medizin','hafen'] },
-  { id:'sup',       label:'🛶 SUP & Kajak', kinds:['badestelle','slip','gastro','sight'] },
-  { id:'angler',    label:'🎣 Angler',      kinds:['slip','shop','hafen','badestelle'] },
-  { id:'tourist',   label:'📸 Tourist',     kinds:['sight','event','gastro','charter','hafen'] },
-  { id:'charter',   label:'⛵ Charter',     kinds:['charter','gelbe_welle','hafen','tank','gastro'] },
-  { id:'b2b',       label:'🏢 Marina/B2B',  kinds:['hafen','gelbe_welle','charter','werkstatt','tank','gastro'] },
-  { id:'notfall',   label:'🆘 Notfall',     kinds:['wsp','notfall','medizin','hafen','schleuse'] },
+  { id:'kapitaen',  label:'⚓ Kapitän',     kinds:['gelbe_welle','hafen','anleger','schleuse','tank','entsorgung','wsp','notfall'],
+    focus:'ELWIS, Pegel, Tiefen, Schleusen & Wind', reco:'Schneller Daten-Blick: amtliche Lage, Pegel, Tiefen & Schleusen auf deiner Route.' },
+  { id:'hausboot',  label:'🛥️ Hausboot',    kinds:['gelbe_welle','hafen','anleger','schleuse','tank','entsorgung','gastro','shop'],
+    focus:'Liegeplätze, Schleusen, Versorgung & Restaurants', reco:'Entspannt unterwegs: Liegeplätze, Schleusenzeiten, Strom/Wasser & Versorgung im Blick.' },
+  { id:'familie',   label:'👨‍👩‍👧 Familie',     kinds:['badestelle','gastro','sight','event','medizin','hafen'],
+    focus:'Badestellen, Restaurants, Highlights & Sicherheit', reco:'Sicher & schön: Badestellen, einfache Stopps und klare Sicherheits-Hinweise.' },
+  { id:'sup',       label:'🛶 SUP & Kajak', kinds:['badestelle','slip','gastro','sight'],
+    focus:'Ein-/Ausstiege, Wind, Badestellen & Gefahren', reco:'Klein & wendig: Wind, Ein-/Ausstiege & Badestellen — kurze Etappen, ablandiger Wind im Blick.' },
+  { id:'angler',    label:'🎣 Angler',      kinds:['slip','shop','hafen','badestelle'],
+    focus:'Ruhige Buchten, Wind, Sonnenzeiten & Community', reco:'Ruhig ansitzen: Wind, Sonnenzeiten & ruhige Plätze — Schongebiete beachten.' },
+  { id:'tourist',   label:'📸 Tourist',     kinds:['sight','event','gastro','charter','hafen'],
+    focus:'Sehenswürdigkeiten, Badestellen & Restaurants', reco:'Entdecken: schöne Orte, Fotospots & Restaurants entlang des Wassers.' },
+  { id:'charter',   label:'⛵ Yacht/Charter', kinds:['charter','gelbe_welle','hafen','tank','gastro','schleuse'],
+    focus:'Tiefgang, Brückenhöhen, Marinas, Tank & Wind', reco:'Größeres Boot: Tiefgang, Brücken, Schleusenmaße & Marinas beachten.' },
+  { id:'b2b',       label:'🏢 Marina/B2B',  kinds:['hafen','gelbe_welle','charter','werkstatt','tank','gastro'],
+    focus:'Häfen, Marinas, Charter & Versorgung', reco:'Revier-Überblick: Häfen, Marinas & Versorgung für Partner.' },
+  { id:'notfall',   label:'🆘 Notfall',     kinds:['wsp','notfall','medizin','hafen','schleuse'],
+    focus:'Standort, WSP, 112/110 & nächste Anlegestelle', reco:'Im Ernstfall: Standort teilen, WSP & nächste Anlegestelle — auch offline verfügbar.' },
 ];
 const LS_MODE = 'wl3_mode';
 export function currentModeId(): string { try { return localStorage.getItem(LS_MODE) || MODES[0].id; } catch { return MODES[0].id; } }

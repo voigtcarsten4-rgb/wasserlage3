@@ -1035,3 +1035,19 @@ html.vision-on{overflow:hidden}
 @keyframes vPulse{0%,100%{opacity:.5;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
 @media (max-width:560px){ .v-audience{display:none} .v-chip{max-width:62vw} }
 @media (prefers-reduced-motion:reduce){ .v-chip,.v-route-chevron{animation:none} }
+
+/* ═══ Phase 5 · Premium Polish — Zielgruppen-Fokus + Fokus-States (impeccable) ═══ */
+/* Audience-Fokus-Zeile unter der Modus-Leiste: macht in 30 s klar, was der Modus zeigt. */
+.mode-focus{margin:2px clamp(14px,4vw,40px) 8px;padding:8px 14px;border-radius:var(--r-md);
+  background:rgba(8,26,41,.45);border:1px solid rgba(63,195,201,.22);backdrop-filter:blur(6px);
+  font-size:.85rem;line-height:1.45;color:#d7eef5;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline}
+.mode-focus b{color:var(--cyan-soft);font-family:var(--font-h);font-weight:700;letter-spacing:.2px}
+.mode-focus .mf-reco{opacity:.64;flex-basis:100%;font-size:.8rem}
+@media(min-width:760px){ .mode-focus{align-items:center} .mode-focus .mf-reco{flex-basis:auto;margin-left:auto} }
+/* Impeccable: sichtbarer, konsistenter Fokus-Ring für Tastatur-Navigation (vorher nur Browser-Default) */
+.mode:focus-visible,.rt-acts button:focus-visible,.rt-pt:focus-visible,.acad-mini:focus-visible,
+.acad-card-acts a:focus-visible,.v-close:focus-visible,.nav-btn:focus-visible,.comm-confirm:focus-visible,
+.cta-btn:focus-visible,#visionBtn:focus-visible,.tn-links a:focus-visible,.rt-act:focus-visible,
+.nele-chip:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:8px}
+/* Konsistenz: Route-Acts & Vision-Button teilen die ruhige Glas-Optik der Leiste */
+#visionBtn.on,#rtLast{font-weight:600}

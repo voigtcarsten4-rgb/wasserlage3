@@ -166,6 +166,12 @@ function initReveal() {
   setTimeout(() => els.forEach(e => e.classList.add('in')), 3500); // Sicherheitsnetz
 }
 
+/* Zielgruppen-Intelligenz: sichtbar machen, was der Modus fokussiert (30-Sekunden-Klarheit). */
+function applyAudience() {
+  const m = currentMode();
+  const el = document.getElementById('modeFocus');
+  if (el) { el.hidden = false; el.innerHTML = `<b>${m.label}</b> — du siehst v.a. ${m.focus}. <span class="mf-reco">${m.reco}</span>`; }
+}
 async function boot() {
   applyTod();
   initPWA();
@@ -175,6 +181,7 @@ async function boot() {
   initCommunity();
   initTouren();
   initChecklists();
+  applyAudience(); window.addEventListener('wl3-mode', applyAudience);
   initMelden(()=>setTimeout(initCommunity, 1200));
   renderSky(null);
   const mapP = initMap('map').catch(e => { console.error('Karte konnte nicht geladen werden', e); return null; });
