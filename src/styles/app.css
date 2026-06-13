@@ -640,3 +640,31 @@ html.is-offline .badge:not(.err){opacity:.5}
 
 /* ═══ Wasserstraßennetz-Toggle ═══ */
 #rtNet.on{background:rgba(63,195,201,.32);border-color:var(--cyan,#3FC3C9);color:#eafaff;font-weight:700}
+
+/* === Scroll-Spy Navigation + Premium-Mikrointeraktionen (Reifegrad-Pass) === */
+.tn-links a { position: relative; transition: color .25s ease; }
+.tn-links a::after {
+  content: ""; position: absolute; left: 8px; right: 8px; bottom: 2px; height: 2px;
+  background: linear-gradient(90deg, var(--cyan), var(--gold));
+  transform: scaleX(0); transform-origin: center; opacity: 0;
+  transition: transform .3s cubic-bezier(.22,.61,.36,1), opacity .3s ease;
+  border-radius: 2px;
+}
+.tn-links a.active { color: #eafaff; }
+.tn-links a.active::after,
+.tn-links a:hover::after { transform: scaleX(1); opacity: .9; }
+
+.exp-card, .tour-card, .b2b, .partner-logo {
+  transition: transform .28s cubic-bezier(.22,.61,.36,1), box-shadow .28s ease, border-color .28s ease;
+  will-change: transform;
+}
+.exp-card:hover, .tour-card:hover, .b2b:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 38px rgba(2,18,28,.32);
+}
+.partner-logo:hover { transform: translateY(-2px) scale(1.02); }
+@media (prefers-reduced-motion: reduce) {
+  .tn-links a::after { transition: none; }
+  .exp-card, .tour-card, .b2b, .partner-logo { transition: none; }
+  .exp-card:hover, .tour-card:hover, .b2b:hover, .partner-logo:hover { transform: none; }
+}

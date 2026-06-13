@@ -138,6 +138,17 @@ function initFooter(w: any) {
   document.getElementById('footTop')?.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 }
 
+function initNav() {
+  const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('.tn-links a'));
+  const map = new Map<Element, HTMLAnchorElement>();
+  links.forEach(a => { const id = a.getAttribute('href')?.slice(1); const s = id && document.getElementById(id); if (s) map.set(s, a); });
+  if (!map.size || !('IntersectionObserver' in window)) return;
+  const io = new IntersectionObserver(ents => ents.forEach(e => {
+    if (e.isIntersecting) { links.forEach(l => l.classList.remove('active')); map.get(e.target)?.classList.add('active'); }
+  }), { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
+  map.forEach((_, s) => io.observe(s));
+}
+
 function initReveal() {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if (!('IntersectionObserver' in window)) return;
@@ -155,6 +166,7 @@ async function boot() {
   initPWA();
   initSafety();
   initReveal();
+  initNav();
   initCommunity();
   initTouren();
   initMelden(()=>setTimeout(initCommunity, 1200));
