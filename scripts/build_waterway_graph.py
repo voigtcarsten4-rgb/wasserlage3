@@ -225,6 +225,34 @@ def connect_gaps(edges, gap_m=3200, min_cos=0.18):
     print("    Seeluecken geschlossen: %d Verbindungen (<= %dm, gerichtet)" % (len(extra), gap_m), flush=True)
     return extra
 
+# Bekannte Fahrrinnen-Querungen (Seen >Schwelle), die das Linien-OSM nicht durchzieht.
+# Jeder Eintrag: (lng1,lat1, lng2,lat2). Wird auf nächste Vertices gesnappt + gebrückt.
+SEEDS = [
+    (13.05459, 52.43610, 13.06196, 52.39253),  # Potsdam: Stadtdurchfahrt Havel (Templiner/Alte Fahrt)
+    (13.20126, 52.61398, 13.21333, 52.57303),  # Nord-Havel: Hennigsdorf / Nieder Neuendorf
+]
+def apply_seeds(edges, seeds, max_snap_m=900):
+    vc = {}
+    for e in edges:
+        vc[e[0]] = e[3][0]; vc[e[1]] = e[3][-1]
+    items = list(vc.items())
+    def nearest(lng, lat):
+        best, bd = None, 9e9
+        for v, c in items:
+            if abs(c[1]-lat) > 0.02 or abs(c[0]-lng) > 0.03: continue
+            d = hav(lat, lng, c[1], c[0])*1000
+            if d < bd: bd, best = d, v
+        return best, bd
+    extra = []
+    for (l1, a1, l2, a2) in seeds:
+        v1, d1 = nearest(l1, a1); v2, d2 = nearest(l2, a2)
+        if v1 is None or v2 is None or v1 == v2 or d1 > max_snap_m or d2 > max_snap_m:
+            print("    ! Seed verworfen (Snap %s/%s m)" % (round(d1), round(d2)), flush=True); continue
+        d = hav(vc[v1][1], vc[v1][0], vc[v2][1], vc[v2][0])
+        extra.append((v1, v2, round(d, 4), [vc[v1], vc[v2]], "⟶ Fahrrinne (Seed)", 1))
+        print("    + Seed-Fahrrinne %.0f m @ %.3f,%.3f" % (d*1000, vc[v1][1], vc[v1][0]), flush=True)
+    return extra
+
 def connect_components(edges, bridge_m=4000, min_comp=20):
     """Grosse, durch Seen getrennte Komponenten ueber naechste Sackgassen-Knoten
     verbinden (Fahrrinnen-Luecken). Connector-Kanten werden markiert (c=1)."""
@@ -304,6 +332,7 @@ def main():
     coords, adj, is_vertex, lock_nodes, name_at = build()
     edges = contract(coords, adj, is_vertex, lock_nodes, name_at)
     edges = edges + connect_gaps(edges)
+    edges = edges + apply_seeds(edges, SEEDS)
     edges = edges + connect_components(edges)
     keep = largest_component(edges)
     edges = [e for e in edges if e[0] in keep and e[1] in keep]
