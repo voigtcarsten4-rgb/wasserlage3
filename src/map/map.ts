@@ -1,6 +1,7 @@
 /* ═══ Karte 3.0 · MapLibre GL · Cluster + Lazy-DE-Loading + Suche (Phase D) ═══ */
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { ratingAllowed, mountRating } from '../lib/ratings';
 
 export interface KindDef { kind:string; label:string; icon:string; color:string; default:boolean; group:string }
 export const KINDS: KindDef[] = [
@@ -149,14 +150,17 @@ export async function initMap(container: string): Promise<MapAPI> {
       : p.quality==='curated' ? '<span class="pp-q curated">kuratiert</span>'
       : '<span class="pp-q unverified">ungeprüft</span>';
     const confirms = Number(p.community_confirms||0) >= 3 ? ' · 🟢 Community-bestätigt' : '';
-    new maplibregl.Popup({ offset: 14, maxWidth: '300px' })
+    const canRate = ratingAllowed(p.kind);
+    const popup = new maplibregl.Popup({ offset: 14, maxWidth: '300px' })
       .setLngLat((f.geometry as any).coordinates)
       .setHTML(`<div class="pp-kind">${kd?.icon??''} ${E(kd?.label??p.kind)}${q}</div>
         <div class="pp-name">${E(p.name)}</div>
         <div class="pp-desc">${E(p.desc||p.descr||'')}${tags.length?'<br><small>'+tags.map((t:string)=>'· '+E(t)).join(' ')+'</small>':''}</div>
         ${acts?`<div class="pp-acts">${acts}</div>`:''}
+        ${canRate?`<div class="pp-rate" data-rate="${E(p.id)}"></div>`:''}
         <div class="pp-meta">Quelle: ${E(p.source||'—')}${p.source_detail?` (${E(p.source_detail)})`:''}${p.verified_at?` · geprüft ${E(p.verified_at)}`:''}${confirms} · Koordinate: ${E(p.coord_quality||'—')}</div>`)
       .addTo(map);
+    if (canRate) { const el = popup.getElement()?.querySelector<HTMLElement>('.pp-rate'); if (el) mountRating(el, p.id); }
   });
   map.on('mouseenter','poi-dot',()=>{ map.getCanvas().style.cursor='pointer'; });
   map.on('mouseleave','poi-dot',()=>{ map.getCanvas().style.cursor=''; });
