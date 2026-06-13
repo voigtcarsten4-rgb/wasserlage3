@@ -4,7 +4,7 @@ import { fetchNotices, fetchFT, fetchPegel, fetchWeather, activeToday } from './
 import { combine } from './lib/ampel';
 import { initMap, addNoticeMarkers, KINDS, GROUPS, LAENDER, type MapAPI } from './map/map';
 import { renderModes, MODES } from './ui/modes';
-import { renderMeldungen, renderWetter, renderPegel } from './ui/dashboard';
+import { renderMeldungen, renderWetter, renderPegel, renderFT, initTiefe } from './ui/dashboard';
 import { initExplorer } from './ui/explorer';
 import { initCommunity } from './ui/community';
 import { renderSky, startSkyTicker } from './ui/sky';
@@ -178,7 +178,7 @@ async function boot() {
   renderSky(w); startSkyTicker(()=>w);
   const state = combine(w, doc?.notices ?? null);
   setAmpel(state); setReco(state, doc, w); setChips(w, doc, ft);
-  renderMeldungen(doc); renderWetter(w); initFooter(w);
+  renderMeldungen(doc); renderWetter(w); initFooter(w); renderFT(ft); initTiefe();
   initEarlyAccess(); initGamification(); initShare(); initLegal();
   fetch(`${import.meta.env.BASE_URL}data/pegel.json`).then(r=>r.json()).then(async (pj)=>{
     const uuids = pj.groups.flatMap((g:any)=>g.stations.map((s:any)=>s.uuid));

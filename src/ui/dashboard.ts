@@ -144,3 +144,86 @@ export function renderPegel(gauges: Gauge[], ft: {stand:string; havel_min_cm:num
     + (ft?`<div class="kv"><span>⚓ Fahrrinne Havel (min)</span><b>${(ft.havel_min_cm/100).toFixed(2).replace('.',',')} m</b></div>`:'')
     + `<div class="row"><span class="ic">ℹ️</span><div class="m">Einstufung nach amtlichen WSV-Kennwerten (Niedrig-/Mittel-/Hochwasser, schiffbare Marken NSW/HSW)${ft?` · Fahrrinnentiefen ELWIS, Stand ${E(ft.stand)}`:''}. Verbindlich: ELWIS & amtliche Fahrrinne.</div></div>`;
 }
+ 
+
+/* ═══ Tiefen-Check (Fahrrinnen-/Tauchtiefe F/T) — „Passt mein Boot?" ═══ */
+interface FTItem { revier:string; group:string; abk:string; section:string; kind:string; value:string; cm:number|null; status:string }
+interface FTDoc { updated_de?:string; stand?:string; items?:FTItem[] }
+let lastFT: FTDoc | null = null;
+
+function draftCm(): number {
+  const inp = document.getElementById('draft') as HTMLInputElement | null;
+  return Math.round(parseFloat(inp?.value || '1.2') * 100);
+}
+const m2 = (cm:number) => (cm/100).toFixed(2).replace('.', ',') + ' m';
+
+export function initTiefe() {
+  const inp = document.getElementById('draft') as HTMLInputElement | null;
+  if (!inp) return;
+  const saved = localStorage.getItem('wl_draft');
+  if (saved && +saved >= 0.3 && +saved <= 2.5) inp.value = saved;
+  const upd = () => {
+    const out = document.getElementById('draftVal'); if (out) out.textContent = m2(draftCm());
+    localStorage.setItem('wl_draft', inp.value);
+    renderFTBars();
+  };
+  inp.addEventListener('input', upd);
+  upd();
+}
+
+export function renderFT(ft: FTDoc | null) { lastFT = ft; renderFTBars(); }
+
+function verdict(cm:number|null, dCm:number): {cls:string; ic:string; t:string} {
+  if (cm == null) return { cls:'na', ic:'—', t:'nicht gemeldet' };
+  const margin = cm - dCm;
+  if (margin >= 40) return { cls:'ok', ic:'✅', t:'frei' };
+  if (margin >= 0)  return { cls:'warn', ic:'⚠️', t:'knapp' };
+  return { cls:'bad', ic:'⛔', t:'zu flach' };
+}
+
+function renderFTBars() {
+  const el = document.getElementById('tiefe'); if (!el) return;
+  const sum = document.getElementById('tiefeSum');
+  if (!lastFT || !lastFT.items || !lastFT.items.length) {
+    badge('bdgTiefe', false, 'nicht erreichbar');
+    el.innerHTML = '<div class="row"><span class="ic">📡</span><div>Fahrrinnentiefen gerade nicht erreichbar.</div></div>';
+    if (sum) sum.textContent = '';
+    return;
+  }
+  const dCm = draftCm();
+  const items = lastFT.items;
+  const reported = items.filter(i => i.cm != null);
+  const maxCm = Math.max(300, dCm, ...reported.map(i => i.cm as number));
+  const scale = Math.ceil(maxCm / 50) * 50;
+  let free = 0, tight = 0, blocked = 0;
+  for (const i of reported) { const v = verdict(i.cm, dCm); if (v.cls==='ok') free++; else if (v.cls==='warn') tight++; else blocked++; }
+
+  badge('bdgTiefe', true, `● Live · ELWIS · ${E(lastFT.stand || lastFT.updated_de || '')}`);
+  if (sum) sum.innerHTML = reported.length
+    ? `Bei <b>${m2(dCm)}</b> Tiefgang: <b class="t-ok">${free} frei</b>${tight?` · <b class="t-warn">${tight} knapp</b>`:''}${blocked?` · <b class="t-bad">${blocked} zu flach</b>`:''} <small>(${reported.length} gemeldet)</small>`
+    : 'Aktuell keine Tiefen gemeldet.';
+
+  /* nach Revier → Gewässer gruppieren */
+  const groups: Record<string, FTItem[]> = {};
+  for (const i of items) { (groups[i.group] = groups[i.group] || []).push(i); }
+  const draftPct = Math.min(100, dCm / scale * 100);
+  let html = '';
+  for (const g of Object.keys(groups)) {
+    const rows = groups[g].map(i => {
+      const v = verdict(i.cm, dCm);
+      const fillPct = i.cm != null ? Math.min(100, i.cm / scale * 100) : 0;
+      const kindLabel = i.kind === 'T' ? 'Tauchtiefe' : 'Fahrrinnentiefe';
+      return `<div class="ft-row ${v.cls}">
+        <div class="ft-meta"><b>${E(i.section)}</b><small>${E(i.kind)} · ${kindLabel}</small></div>
+        <div class="ft-bar" title="Tiefgang-Marke bei ${m2(dCm)}">
+          <div class="ft-fill ${v.cls}" style="width:${fillPct}%"></div>
+          <div class="ft-draft" style="left:${draftPct}%"></div>
+        </div>
+        <div class="ft-val">${i.cm != null ? m2(i.cm) : '<span class="ft-na">n. gem.</span>'}</div>
+        <div class="ft-vd ${v.cls}" title="${v.t}">${v.ic}</div>
+      </div>`;
+    }).join('');
+    html += `<div class="ft-group"><div class="ft-gh">${E(g)} <small>${E(groups[g][0].abk)}</small></div>${rows}</div>`;
+  }
+  el.innerHTML = html + `<div class="row"><span class="ic">⚓</span><div class="m">Marke = dein Tiefgang. Werte: amtliche ELWIS-Fahrrinnen-/Tauchtiefen, Stand ${E(lastFT.stand || '—')}. Empfehlung: mind. 30–40 cm Sicherheitswasser unter dem Kiel. Verbindlich bleibt ELWIS.</div></div>`;
+}
