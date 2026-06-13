@@ -19,6 +19,7 @@ import { initNele, type NeleState } from './ui/nele';
 import { initDestination } from './ui/destination';
 import { initRoute, setRouteDestination } from './ui/route';
 import { initVision } from './ui/vision';
+import { initMapMarkers } from './ui/mapmarkers';
 import { initEarlyAccess } from './ui/earlyaccess';
 import { initGamification } from './ui/gamification';
 import { initAcademy } from './ui/academy';
@@ -233,6 +234,7 @@ async function boot() {
     initRoute(api, () => doc);
     (window as any).__wl3routeTo = (ll: [number, number], name?: string) => { try { setRouteDestination(ll, name); } catch { /* */ } };
     initVision(api);
+    initMapMarkers(api);
   } else {
     fetch(`${import.meta.env.BASE_URL}data/pois.geojson`).then(r=>r.json()).then(fc => initExplorer(fc.features, ()=>{}));
   }

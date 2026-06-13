@@ -1176,3 +1176,8 @@ html[data-tod="night"] .wl-src a,html[data-tod="dusk"] .wl-src a{color:var(--cya
 .fav-x:hover{border-color:var(--gold)}
 .fav-empty{font-size:13px;color:var(--ink2);line-height:1.55;background:rgba(255,255,255,.04);border:1px dashed var(--glass-brd);border-radius:var(--r-lg,16px);padding:18px}
 @media(max-width:560px){.fav-grid{grid-template-columns:1fr}}
+
+/* ── Karten-Marker-Ebene Toggle (Milestone 22) ── */
+.wla-toggle{position:absolute;right:10px;bottom:30px;z-index:5;background:var(--glass);backdrop-filter:blur(10px);border:1px solid var(--glass-brd);color:var(--ink);border-radius:999px;padding:7px 13px;font:600 12px var(--font-b);cursor:pointer;box-shadow:0 6px 18px -8px rgba(4,18,31,.5)}
+.wla-toggle:hover{border-color:var(--cyan,#3FC3C9)}
+.wla-toggle.off{opacity:.5}
