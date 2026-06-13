@@ -6,10 +6,10 @@
 type V3 = [number, number, number];
 interface Phase { top:V3; horizon:V3; sun:V3; sand:V3; shallow:V3; deep:V3; }
 const PHASES: Record<string, Phase> = {
-  dawn:  { top:[0.16,0.21,0.36], horizon:[0.97,0.58,0.34], sun:[1.0,0.74,0.44], sand:[0.62,0.54,0.46], shallow:[0.34,0.56,0.58], deep:[0.05,0.12,0.24] },
-  day:   { top:[0.16,0.46,0.70], horizon:[0.70,0.87,0.95], sun:[1.0,0.97,0.82], sand:[0.82,0.80,0.60], shallow:[0.18,0.66,0.68], deep:[0.02,0.17,0.33] },
-  dusk:  { top:[0.13,0.11,0.28], horizon:[0.95,0.45,0.32], sun:[1.0,0.57,0.37], sand:[0.56,0.43,0.44], shallow:[0.34,0.43,0.52], deep:[0.05,0.09,0.21] },
-  night: { top:[0.02,0.05,0.13], horizon:[0.06,0.13,0.26], sun:[0.78,0.86,1.0], sand:[0.10,0.17,0.24], shallow:[0.06,0.22,0.36], deep:[0.01,0.05,0.13] },
+  dawn:  { top:[0.13,0.18,0.34], horizon:[0.92,0.52,0.32], sun:[1.0,0.74,0.44], sand:[0.46,0.46,0.44], shallow:[0.16,0.46,0.54], deep:[0.03,0.09,0.22] },
+  day:   { top:[0.14,0.44,0.70], horizon:[0.58,0.80,0.92], sun:[1.0,0.97,0.82], sand:[0.50,0.60,0.54], shallow:[0.13,0.58,0.64], deep:[0.02,0.13,0.30] },
+  dusk:  { top:[0.11,0.10,0.26], horizon:[0.92,0.42,0.30], sun:[1.0,0.57,0.37], sand:[0.42,0.36,0.40], shallow:[0.18,0.38,0.50], deep:[0.03,0.07,0.19] },
+  night: { top:[0.01,0.04,0.11], horizon:[0.05,0.11,0.23], sun:[0.78,0.86,1.0], sand:[0.07,0.13,0.20], shallow:[0.04,0.18,0.32], deep:[0.01,0.04,0.11] },
 };
 const lerp3 = (a:V3,b:V3,k:number):V3 => [a[0]+(b[0]-a[0])*k, a[1]+(b[1]-a[1])*k, a[2]+(b[2]-a[2])*k];
 const toMin = (s?:string) => s ? +s.slice(0,2)*60 + +s.slice(3,5) : null;
@@ -87,16 +87,17 @@ export async function initWater3D() {
           v += abs(sin(p.x)+cos(p.y*1.1)); }
         return pow(max(0.0, 1.6 - v*0.5), 2.2); }
       void main(){
-        /* Tiefen-Farbe: Sand→Türkis→Tiefblau */
-        vec3 base = mix(sand, shallow, smoothstep(0.0, 0.30, depth));
-        base = mix(base, deep, smoothstep(0.28, 0.85, depth));
-        /* Kaustik nur im Flachwasser */
-        float shallowMask = 1.0 - smoothstep(0.05, 0.42, depth);
-        base += vec3(0.9,0.95,0.8) * caustic(wp.xy*0.13) * shallowMask * 0.35 * (1.0-storm*0.7);
-        /* Fresnel: Richtung Horizont mehr Himmelreflexion */
-        float fres = pow(depth, 1.5);
-        vec3 refl = mix(skyHor, skyTop, depth*0.5);
-        vec3 c = mix(base, refl, fres*0.6*(1.0-storm*0.4));
+        /* Tiefen-Farbe: Türkis (flach/nah) → Tiefblau (fern) */
+        vec3 base = mix(shallow, deep, smoothstep(0.03, 0.70, depth));
+        /* feiner Sandschimmer NUR im unmittelbaren Vordergrund */
+        float nearMask = 1.0 - smoothstep(0.0, 0.13, depth);
+        base = mix(base, sand, nearMask*0.16);
+        /* Kaustik: subtile türkis-weiße Lichtnetze, nur nah */
+        base += vec3(0.55,0.92,0.88) * caustic(wp.xy*0.13) * nearMask * 0.15 * (1.0-storm*0.7);
+        /* Fresnel dezent — Wasser behält seine Farbe (nicht ausgewaschen) */
+        float fres = pow(depth, 1.7);
+        vec3 refl = mix(skyHor, skyTop, depth*0.4);
+        vec3 c = mix(base, refl, fres*0.30*(1.0-storm*0.4));
         /* Glitzerpfad zum Sonnen-/Mondstand (Azimut = sunX) */
         float path = exp(-abs(wp.x - sunX*70.0)*0.045) * smoothstep(-100.0, -4.0, wp.y);
         float spark = pow(max(h,0.0), 2.3) * (0.5+0.5*sin(wp.x*2.6 + t*3.1));
