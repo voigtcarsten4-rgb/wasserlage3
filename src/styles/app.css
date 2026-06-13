@@ -804,3 +804,32 @@ html.is-offline .badge:not(.err){opacity:.5}
 .rt-tl-lab{font-size:.66rem;line-height:1.12;opacity:.85;max-width:74px}
 .rt-tl-sep{flex:0 0 auto;color:rgba(63,195,201,.75);font-weight:700;font-size:.8rem;align-self:center}
 .rt-tl::-webkit-scrollbar{height:0}
+
+
+/* ═══ Captain Academy (Game-Sektion) ═══ */
+.academy .acad-hero{display:flex;gap:16px;align-items:center;padding:18px;margin:6px 0 14px;
+  background:linear-gradient(135deg,rgba(20,48,73,.93),rgba(8,26,41,.93));border:1px solid rgba(63,195,201,.30);position:relative;overflow:hidden}
+.academy .acad-hero::after{content:"";position:absolute;right:-40px;top:-40px;width:160px;height:160px;border-radius:50%;
+  background:radial-gradient(circle,rgba(63,195,201,.30),transparent 70%);pointer-events:none}
+.acad-hero-badge{display:inline-block;font:700 11px/1 var(--font-b);background:var(--cyan);color:#04121f;border-radius:999px;padding:5px 10px;margin-bottom:8px}
+.acad-hero-body{position:relative;z-index:1}
+.acad-hero-body h3{margin:2px 0 6px;color:#fff;font-size:1.12rem}
+.acad-hero-body p{color:rgba(255,255,255,.84);font-size:.9rem;margin:0 0 12px;max-width:48ch}
+.acad-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.acad-card{padding:14px;text-align:left}
+.acad-card .acad-ic{font-size:1.5rem;display:block;margin-bottom:6px}
+.acad-card h4{margin:0 0 4px;font-size:.96rem}
+.acad-card p{margin:0;font-size:.82rem;color:var(--ink2);line-height:1.35}
+.acad-foot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:14px}
+.acad-soon{font-size:.82rem;color:var(--ink2)}
+@media(max-width:760px){ .acad-grid{grid-template-columns:repeat(2,1fr)} .academy .acad-hero{flex-direction:column;align-items:flex-start} }
+
+/* ═══ UX (P5) · Route-Summary als Bottom-Sheet auf Mobile ═══ */
+@media(max-width:640px){
+  .route-summary:not([hidden]){position:fixed;left:0;right:0;bottom:0;top:auto;margin:0;z-index:1200;
+    max-height:64vh;overflow-y:auto;border-radius:18px 18px 0 0;
+    padding:14px 16px calc(16px + env(safe-area-inset-bottom));box-shadow:0 -10px 30px rgba(4,18,31,.38);
+    -webkit-overflow-scrolling:touch}
+  .route-summary:not([hidden])::before{content:"";display:block;width:42px;height:5px;border-radius:3px;
+    background:rgba(127,127,127,.45);margin:-4px auto 10px}
+}
