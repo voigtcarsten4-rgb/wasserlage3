@@ -188,7 +188,7 @@ export function initNele(state: NeleState) {
 
   let greeted = false;
   const open = () => {
-    panel.hidden = false; fab.style.display = 'none';
+    panel.hidden = false; root.classList.add('is-open');
     if (!greeted) { greeted = true;
       say('Moin! 👋 Ich bin <b>Nele</b>, deine Lotsin fürs Revier. Sag mir, was du vorhast — ich verrate dir in einem Satz, ob du heute rausfahren kannst, wo\'s eng wird, wo du tankst, anlegst, isst oder die schönste Route findest. ⚓');
       if (navigator.onLine) setTimeout(() => say(reco(state)), 500);
@@ -197,7 +197,7 @@ export function initNele(state: NeleState) {
     }
     setTimeout(() => input.focus(), 200);
   };
-  const close = () => { panel.hidden = true; fab.style.display = ''; if ('speechSynthesis' in window) window.speechSynthesis.cancel(); };
+  const close = () => { panel.hidden = true; root.classList.remove('is-open'); if ('speechSynthesis' in window) window.speechSynthesis.cancel(); };
   fab.onclick = () => { if (panel.hidden) open(); else close(); };
   $('#neleClose').onclick = close;
   $('#neleVoice').onclick = () => {
