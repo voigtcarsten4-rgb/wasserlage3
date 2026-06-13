@@ -287,9 +287,10 @@ def apply_seeds(edges, seeds, max_snap_m=900):
         print("    + Seed-Fahrrinne %.0f m @ %.3f,%.3f" % (d*1000, vc[v1][1], vc[v1][0]), flush=True)
     return extra
 
-def connect_components(edges, bridge_m=4000, min_comp=20):
-    """Grosse, durch Seen getrennte Komponenten ueber naechste Sackgassen-Knoten
-    verbinden (Fahrrinnen-Luecken). Connector-Kanten werden markiert (c=1)."""
+def connect_components(edges, bridge_m=4000, min_comp=20, min_cos=0.25):
+    """Grosse, durch Seen getrennte Komponenten verbinden — NUR wenn die echten
+    Sackgassen (Grad 1) *aufeinander zu* zeigen (Fahrrinnen-Fortsetzung). Verhindert
+    perpendikulare Land-Abkuerzungen. Connector-Kanten werden markiert (c=1)."""
     parent = {}
     def find(x):
         parent.setdefault(x, x)
@@ -298,12 +299,19 @@ def connect_components(edges, bridge_m=4000, min_comp=20):
     def union(a,b):
         ra,rb=find(a),find(b)
         if ra!=rb: parent[ra]=rb
-    vc, deg = {}, {}
+    vc, deg, e_of = {}, {}, {}
     for e in edges:
         a, b, geom = e[0], e[1], e[3]
         vc[a]=geom[0]; vc[b]=geom[-1]
         deg[a]=deg.get(a,0)+1; deg[b]=deg.get(b,0)+1
+        e_of.setdefault(a,[]).append(e); e_of.setdefault(b,[]).append(e)
         union(a,b)
+    # Auswaertsrichtung jeder echten Sackgasse (Grad 1) — nur diese sind Bruecken-Kandidaten
+    out = {}
+    for v in vc:
+        if deg.get(v,0) != 1: continue
+        e = e_of[v][0]; g = e[3]
+        out[v] = _udir(g[1], g[0]) if e[0]==v else _udir(g[-2], g[-1])
     extra=[]
     for _ in range(12):
         comp={}
@@ -311,24 +319,27 @@ def connect_components(edges, bridge_m=4000, min_comp=20):
         big=sorted(((len(m),r) for r,m in comp.items()), reverse=True)
         if len(big)<2 or big[1][0]<min_comp: break
         root=big[0][1]
-        cand=[v for v in vc if deg.get(v,0)<=2]           # nur Sackgassen/Endpunkte
-        L=[v for v in cand if find(v)==root]
+        L=[v for v in out if find(v)==root]
         best=None
         for sz,r in big[1:]:
             if sz<min_comp: continue
-            R=[v for v in cand if find(v)==r]
+            R=[v for v in out if find(v)==r]
             for u in L:
                 lo1,la1=vc[u]
                 for w in R:
                     lo2,la2=vc[w]
                     if abs(la1-la2)>0.05 or abs(lo1-lo2)>0.08: continue
                     d=hav(la1,lo1,la2,lo2)*1000
-                    if d<=bridge_m and (best is None or d<best[0]): best=(d,u,w)
+                    if d>bridge_m: continue
+                    uvw=_udir(vc[u], vc[w])
+                    if out[u][0]*uvw[0]+out[u][1]*uvw[1] < min_cos: continue      # u zeigt zu w
+                    if out[w][0]*(-uvw[0])+out[w][1]*(-uvw[1]) < min_cos: continue # w zeigt zu u
+                    if best is None or d<best[0]: best=(d,u,w)
         if not best: break
         d,u,w=best
         extra.append((u,w,round(d/1000,4),[vc[u],vc[w]],"⟶ Verbindung (Fahrrinne pruefen)",1))
         union(u,w)
-        print("    + Verbindung %.0f m @ %.3f,%.3f" % (d, vc[u][1], vc[u][0]), flush=True)
+        print("    + gerichtete Verbindung %.0f m @ %.3f,%.3f" % (d, vc[u][1], vc[u][0]), flush=True)
     return extra
 
 def largest_component(edges):
