@@ -144,6 +144,30 @@ function tryGeo(silent = false) {
     { enableHighAccuracy: true, timeout: 9000 });
 }
 
+let netShown = false;
+async function toggleNet() {
+  if (!API) return; const map = API.map; const btn = document.getElementById('rtNet'); const hint = document.getElementById('rtHint');
+  try {
+    const g = await loadGraph();
+    if (!map.getSource('wlnet')) {
+      const feats = g.edges.map(e => ({ type:'Feature', properties:{ c: e[5]?1:0 }, geometry:{ type:'LineString', coordinates: e[3] } }));
+      map.addSource('wlnet', { type:'geojson', data:{ type:'FeatureCollection', features: feats } as any });
+      const before = map.getLayer('poi-halo') ? 'poi-halo' : undefined;
+      map.addLayer({ id:'wlnet-line', type:'line', source:'wlnet',
+        layout:{ 'line-cap':'round', 'line-join':'round', visibility:'none' },
+        paint:{ 'line-color':['case',['==',['get','c'],1],'#D9B14D','#3FC3C9'] as any,
+          'line-opacity':0.5,
+          'line-width':['interpolate',['linear'],['zoom'],6,0.6,10,1.4,14,2.8] as any } }, before);
+    }
+    netShown = !netShown;
+    map.setLayoutProperty('wlnet-line','visibility', netShown ? 'visible' : 'none');
+    btn?.classList.toggle('on', netShown);
+    if (hint) hint.textContent = netShown
+      ? '≈ Schiffbares Netz eingeblendet (gold = verbindende Fahrrinnen-/Seeabschnitte).'
+      : 'Tippe Start (A) & Ziel (B) auf die Karte — oder nutze 📍 Standort.';
+  } catch { if (hint) hint.textContent = 'Wasserstraßennetz konnte nicht geladen werden.'; }
+}
+
 export function initRoute(api: MapAPI, noticesProvider?: () => { notices: Notice[] } | null) {
   API = api;
   getNotices = noticesProvider || null;
@@ -155,6 +179,7 @@ export function initRoute(api: MapAPI, noticesProvider?: () => { notices: Notice
   }));
   $('rtGeo')?.addEventListener('click', () => tryGeo(false));
   $('rtClear')?.addEventListener('click', clearRoute);
+  $('rtNet')?.addEventListener('click', toggleNet);
   api.map.on('click', (e) => {
     if (!pick) return;
     const ll: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)];
