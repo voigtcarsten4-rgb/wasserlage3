@@ -15,6 +15,7 @@ import { initDestination } from './ui/destination';
 import { initEarlyAccess } from './ui/earlyaccess';
 import { initGamification } from './ui/gamification';
 import { initPWA } from './lib/pwa';
+import { initShare } from './ui/share';
 
 /* 4 Tagesphasen: dawn (±45 min um Sonnenaufgang) · day · dusk (±45 min um Untergang) · night */
 function applyTod(sunrise?: string, sunset?: string) {
@@ -139,7 +140,7 @@ async function boot() {
   const state = combine(w, doc?.notices ?? null);
   setAmpel(state); setReco(state, doc, w); setChips(w, doc, ft);
   renderMeldungen(doc); renderWetter(w);
-  initEarlyAccess(); initGamification();
+  initEarlyAccess(); initGamification(); initShare();
   fetch(`${import.meta.env.BASE_URL}data/pegel.json`).then(r=>r.json()).then(async (pj)=>{
     const uuids = pj.groups.flatMap((g:any)=>g.stations.map((s:any)=>s.uuid));
     renderPegel(await fetchPegel(uuids), ft);
