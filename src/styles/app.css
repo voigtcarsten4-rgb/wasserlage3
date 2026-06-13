@@ -444,3 +444,11 @@ html[data-tod="night"] .comm-form input,html[data-tod="night"] .comm-form select
 .ea-consent{display:flex;gap:8px;font-size:.76rem;opacity:.8;line-height:1.5;cursor:pointer}
 .ea-consent input{margin-top:2px;flex-shrink:0}
 .ea-hint{font-size:.82rem;min-height:1em;opacity:.95}
+
+/* ═══ PWA: Offline-Badge ═══ */
+#netBadge{position:fixed;top:0;left:0;right:0;z-index:70;background:linear-gradient(90deg,#b4781f,#8a5a12);color:#fff;
+  font-size:.8rem;text-align:center;padding:7px 14px;line-height:1.4;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+html.is-offline .badge:not(.err){opacity:.5}
+.lilly-chip.needs-net{opacity:.55}
+.lilly-chip.needs-net::after{content:' 📡';font-size:.7em}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}

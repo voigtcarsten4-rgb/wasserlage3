@@ -44,7 +44,16 @@ function wetterTxt(s: LillyState): string {
   return `Aktuell ${w.temp} °C, Wind ${w.bft} Bft aus ${w.dir} (${w.kmh} km/h), Böen bis ${w.gust} km/h.${warn} Sonne ↑ ${w.sunrise} · ↓ ${w.sunset} Uhr.`;
 }
 
-const QUESTIONS: { q: string; icon: string; a: (s: LillyState) => string | Promise<string> }[] = [
+/* ── Offline-Wissen (statisch, halluzinationsfrei — funktioniert ohne Netz) ── */
+const KNOW: Record<string,string> = {
+  checkliste: `<b>Vor-Abfahrt-Checkliste:</b><br>• Wetter & Wind geprüft, Tankfüllung ausreichend<br>• Rettungswesten an Bord & griffbereit, Kinder angelegt<br>• Leinen, Fender, Anker klar · Bordwerkzeug & Pumpe<br>• Funk/Handy geladen · Erste-Hilfe & Feuerlöscher geprüft<br>• Lichter funktionieren · Crew kennt Mann-über-Bord-Plan<br>• Fahrtgebiet & Schleusenzeiten bekannt`,
+  notfall: `<b>Notfall auf dem Wasser:</b><br>• Europaweiter Notruf <b>112</b><br>• UKW-Seefunk: Kanal <b>16</b> (Not/Anruf), DSC-Notruf via Kanal 70<br>• Wasserschutzpolizei über 110<br>• Mann über Bord: Knopf MOB/Position merken, Boje werfen, Person im Blick behalten, langsam wenden<br>• Position so genau wie möglich durchgeben (GPS – auf der Karte unter „Sicherheitsanker").`,
+  sicherheit: `<b>Sicherheitsregeln:</b><br>• Rechts ausweichen, Berufsschifffahrt hat Vorrang<br>• In der Fahrrinne fahren, Tonnen beachten (rot/grün)<br>• Abstand zu Badenden & Naturschutzzonen, Wellenschlag vermeiden<br>• Tempo nach Beschilderung · nachts ohne Ortskenntnis nicht fahren<br>• Alkohol: 0,5 ‰-Grenze gilt sinngemäß auch hier — lieber ganz lassen.`,
+  schleuse: `<b>Schleusen-Knigge:</b><br>• Vor Anfahrt Betriebszeiten & UKW-Kanal prüfen<br>• Am Warteplatz auf Lichtsignal warten (rot = warten, grün = einfahren)<br>• Langsam einfahren, Leinen mittschiffs belegen, Fender raus<br>• Motor an lassen, Crew an den Leinen, ruhig nachführen beim Füllen/Leeren<br>• Erst ausfahren, wenn das Signal frei gibt.`,
+  knoten: `<b>Wichtige Knoten:</b><br>• <b>Webleinstek</b> (Festmachen am Poller)<br>• <b>Palstek</b> (feste Schlaufe, klemmt nicht)<br>• <b>Achtknoten</b> (Stopperknoten am Leinenende)<br>• <b>Belegen</b> an der Klampe in 8er-Schlägen.`,
+  revier: `<b>Reviere Berlin/Brandenburg kurz erklärt:</b> Havel & Seen (weite Reviere, Westhavelland-Sternenpark) · Spree City (Funkpflicht Berlin-Mitte, Landwehrkanal Einbahn) · Dahme-Seenkette (führerscheinfrei, einsteigerfreundlich) · Oder (frei fließend, für Erfahrene). Details findest du unten unter „Reviere & Events".`,
+};
+const QUESTIONS: { q: string; icon: string; a: (s: LillyState) => string | Promise<string>; offline?: boolean }[] = [
   { q: 'Kann ich heute fahren?', icon: '⛵', a: reco },
   { q: 'Welche Sperrungen betreffen mich?', icon: '⚠️', a: sperrungen },
   { q: 'Wie ist Wetter & Wind?', icon: '🌤️', a: wetterTxt },
@@ -52,6 +61,11 @@ const QUESTIONS: { q: string; icon: string; a: (s: LillyState) => string | Promi
   { q: 'Wo kann ich anlegen?', icon: '⚓', a: (s) => nearby(s, ['gelbe_welle', 'hafen', 'anleger'], 'Gastliegeplätze') },
   { q: 'Wo kann ich baden?', icon: '🏖️', a: (s) => nearby(s, ['badestelle'], 'Badestellen') },
   { q: 'Wo esse ich gut?', icon: '🍽️', a: (s) => nearby(s, ['gastro'], 'Gastronomie am Wasser') },
+  { q: 'Vor-Abfahrt-Checkliste', icon: '✅', a: () => KNOW.checkliste, offline: true },
+  { q: 'Notfall & Hilfe', icon: '🆘', a: () => KNOW.notfall, offline: true },
+  { q: 'Sicherheitsregeln', icon: '🛟', a: () => KNOW.sicherheit, offline: true },
+  { q: 'Wie läuft eine Schleuse?', icon: '🚪', a: () => KNOW.schleuse, offline: true },
+  { q: 'Erklär mir das Revier', icon: '🗺️', a: () => KNOW.revier, offline: true },
   { q: 'Was sollte ich wissen?', icon: '🧭', a: (s) => `${reco(s)}<br><br>Übrigens: Tippe oben „Wo möchtest du heute hin?" — dann zeige ich dir alles entlang deines Ziels. Weitere Bundesländer schalten wir Schritt für Schritt frei.` },
 ];
 
@@ -79,20 +93,31 @@ export function initLilly(state: LillyState) {
     body.appendChild(b); body.scrollTop = body.scrollHeight;
   };
   const renderChips = () => {
+    const offline = !navigator.onLine;
     chips.innerHTML = '';
+    /* Offline: Live-Fragen zuerst zeigen, aber als „braucht Netz" markiert; Wissensfragen normal */
     QUESTIONS.forEach(item => {
-      const b = document.createElement('button'); b.className = 'lilly-chip';
+      const b = document.createElement('button'); b.className = 'lilly-chip' + (offline && !item.offline ? ' needs-net' : '');
       b.innerHTML = `${item.icon} ${E(item.q)}`;
-      b.onclick = async () => { say(E(item.q), 'me'); const t = document.createElement('div'); t.className = 'lilly-msg lilly typing'; t.textContent = 'Lilly schaut nach …'; body.appendChild(t); body.scrollTop = body.scrollHeight;
-        const ans = await item.a(state); t.remove(); say(ans); };
+      b.onclick = async () => {
+        say(E(item.q), 'me');
+        if (!navigator.onLine && !item.offline) {
+          say('📡 Dafür brauche ich kurz Netz — das sind Live-Daten (Wetter, amtliche Lage, Standort). Sobald du wieder online bist, beantworte ich das sofort. Offline helfe ich dir gern mit <b>Checkliste, Sicherheit, Notfall, Schleuse & Revier</b>.');
+          return;
+        }
+        const t = document.createElement('div'); t.className = 'lilly-msg lilly typing'; t.textContent = 'Lilly schaut nach …'; body.appendChild(t); body.scrollTop = body.scrollHeight;
+        const ans = await item.a(state); t.remove(); say(ans);
+      };
       chips.appendChild(b);
     });
   };
+  addEventListener('online', renderChips); addEventListener('offline', renderChips);
   let greeted = false;
   const open = () => { panel.hidden = false; fab.classList.add('open');
     if (!greeted) { greeted = true;
       say('Moin! 👋 Ich bin <b>Lilly</b>, deine Lotsin auf Wasserlage. Ich zeige dir zuerst nur das, was für <b>deine Fahrt heute</b> wichtig ist — alles Weitere kannst du aufklappen.');
-      setTimeout(() => say(reco(state)), 500);
+      if (navigator.onLine) setTimeout(() => say(reco(state)), 500);
+      else setTimeout(() => say('Du bist gerade <b>offline</b> — Live-Lage und Wetter kann ich dir erst wieder online zeigen. Aber Checkliste, Sicherheit, Notfall, Schleuse & Revier habe ich auch ohne Netz für dich.'), 500);
     }
     renderChips();
   };

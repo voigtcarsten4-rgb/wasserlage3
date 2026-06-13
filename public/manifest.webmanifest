@@ -1,15 +1,17 @@
 {
   "name": "Wasserlage — Dein Revier live",
   "short_name": "Wasserlage",
-  "description": "Amtliche Lage, Pegel, Wetter & Service-Karte für Bootsfahrer in Berlin & Brandenburg.",
+  "description": "Gewässerkarte für ganz Deutschland: Häfen, Schleusen, Gelbe Welle, Pegel, Wetter & Community. Powered by Wave Bite.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#04121f",
-  "theme_color": "#04121f",
+  "theme_color": "#0E2A40",
   "lang": "de",
+  "categories": ["navigation", "travel", "weather", "sports"],
   "icons": [
-    { "src": "/wasserlage/wasserlage-icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/wasserlage/wasserlage-icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }

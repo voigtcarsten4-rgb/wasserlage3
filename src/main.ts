@@ -14,6 +14,7 @@ import { initLilly, type LillyState } from './ui/lilly';
 import { initDestination } from './ui/destination';
 import { initEarlyAccess } from './ui/earlyaccess';
 import { initGamification } from './ui/gamification';
+import { initPWA } from './lib/pwa';
 
 /* 4 Tagesphasen: dawn (±45 min um Sonnenaufgang) · day · dusk (±45 min um Untergang) · night */
 function applyTod(sunrise?: string, sunset?: string) {
@@ -124,6 +125,7 @@ function initSafety() {
 
 async function boot() {
   applyTod();
+  initPWA();
   initSafety();
   initCommunity();
   initTouren();
