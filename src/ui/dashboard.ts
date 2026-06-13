@@ -64,6 +64,35 @@ function windrose(dirStr:string, bft:number, kmh:number): string {
   </svg>
   <div class="wr-cap">Wind aus ${E(dirStr)} · ${kmh} km/h</div></div>`;
 }
+const bftOf = (k:number) => { const b=[1,6,12,20,29,39,50,62,75,89,103,118]; for(let i=0;i<b.length;i++) if(k<b[i]) return i; return 12; };
+/* Bootsfahrer-Ampel je Tag: Wind + Regen + Gewitter → frei/Hinweis/Einschränkung */
+function boaterRating(bft:number, precip:number, code:number): {cls:string; dot:string; txt:string} {
+  if (bft>=6 || code>=95) return {cls:'r', dot:'🔴', txt:'Sturm/Gewitter — besser an Land'};
+  if (bft>=4 || precip>=60) return {cls:'a', dot:'🟡', txt: bft>=4?'Frischer Wind — aufpassen':'Regen wahrscheinlich'};
+  return {cls:'g', dot:'🟢', txt:'Gute Bedingungen'};
+}
+function renderForecast(w: Weather): string {
+  const d = w.daily; if (!d || !d.time) return '';
+  const days = d.time.length;
+  const wd = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+  let cells = '';
+  for (let i=0;i<days;i++){
+    const date = new Date(d.time[i]); const label = i===0?'Heute':wd[date.getDay()];
+    const code = d.weather_code[i]; const tmax = Math.round(d.temperature_2m_max[i]); const tmin = Math.round(d.temperature_2m_min[i]);
+    const wmax = Math.round(d.wind_speed_10m_max[i]); const bft = bftOf(wmax);
+    const gust = d.wind_gusts_10m_max ? Math.round(d.wind_gusts_10m_max[i]) : 0;
+    const precip = d.precipitation_probability_max?.[i] ?? 0;
+    const r = boaterRating(bft, precip, code);
+    cells += `<div class="fcd fc-${r.cls}" title="${E(r.txt)} · Böen ~${gust} km/h · Regen ${precip}%">
+      <div class="fcw">${E(label)}</div><div class="fci">${WICON[code]??'🌤️'}</div>
+      <div class="fct">${tmax}°<small>${tmin}°</small></div>
+      <div class="fcwind">💨 ${bft} Bft</div><div class="fcrain">💧 ${precip}%</div>
+      <div class="fcdot" aria-label="${E(r.txt)}">${r.dot}</div></div>`;
+  }
+  return `<div class="fc-h">📅 7-Tage-Ausblick · Bootsfahrer-Ampel <span class="fc-src">Open-Meteo/DWD</span></div>
+    <div class="fc-strip">${cells}</div>
+    <div class="fc-legend">🟢 frei · 🟡 Hinweis (Wind ab 4 Bft / Regen) · 🔴 Sturm/Gewitter — Bewertung für kleine & mittlere Boote</div>`;
+}
 export function renderWetter(w: Weather|null) {
   const el = $('wetter');
   if (!w) { badge('bdgWetter',false,'nicht erreichbar'); el.innerHTML='<div class="row"><span class="ic">📡</span><div>Wetterdaten gerade nicht erreichbar.</div></div>'; return; }
@@ -74,7 +103,11 @@ export function renderWetter(w: Weather|null) {
     <div class="kv"><span>${WICON[w.code]??'🌤️'} Wind</span><b>${w.bft} Bft aus ${w.dir} · ${w.kmh} km/h</b></div>
     <div class="kv"><span>Böen</span><b>~${w.gust} km/h</b></div>
     <div class="kv"><span>Temperatur</span><b>${w.temp} °C</b></div>
-    <div class="kv"><span>Sonne</span><b>↑ ${w.sunrise} · ↓ ${w.sunset} Uhr</b></div>${warn}`;
+    <div class="kv"><span>Sonne</span><b>↑ ${w.sunrise} · ↓ ${w.sunset} Uhr</b></div>${warn}`
+    + renderForecast(w)
+    + `<details class="wx-radar"><summary>🛰️ Live-Wetterradar (Regen) · Berlin/Brandenburg</summary>
+        <iframe loading="lazy" title="Wetterradar" src="https://embed.windy.com/embed2.html?lat=52.45&lon=13.4&zoom=7&level=surface&overlay=rain&menu=&message=&type=map&location=coordinates&metricWind=bft&metricTemp=%C2%B0C&radarRange=-1"></iframe>
+        <div class="wx-radar-src">Radar © Windy.com</div></details>`;
 }
 
 export function renderPegel(gauges: Gauge[], ft: {stand:string; havel_min_cm:number}|null) {

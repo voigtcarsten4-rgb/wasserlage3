@@ -10,7 +10,7 @@ import { initCommunity } from './ui/community';
 import { renderSky, startSkyTicker } from './ui/sky';
 import { initMelden } from './ui/melden';
 import { initTouren } from './ui/touren';
-import { initLilly, type LillyState } from './ui/lilly';
+import { initNele, type NeleState } from './ui/nele';
 import { initDestination } from './ui/destination';
 import { initRoute } from './ui/route';
 import { initEarlyAccess } from './ui/earlyaccess';
@@ -157,7 +157,7 @@ async function boot() {
       initExplorer(fc.features, (lng,lat) => api.map.flyTo({ center:[lng,lat], zoom: 13.5, speed: 1.4 }));
     }).catch(e => console.error('Explorer-Daten nicht ladbar', e));
     initDestination(api);
-    initRoute(api);
+    initRoute(api, () => doc);
   } else {
     fetch(`${import.meta.env.BASE_URL}data/pois.geojson`).then(r=>r.json()).then(fc => initExplorer(fc.features, ()=>{}));
   }
@@ -169,7 +169,7 @@ async function boot() {
     return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
   };
   let userPos: {lat:number;lon:number}|null = null;
-  const lillyState: LillyState = {
+  const lillyState: NeleState = {
     weather: () => w, doc: () => doc, ft: () => ft, ampel: () => state,
     nearest: async (kinds) => {
       if (!userPos) {
@@ -188,7 +188,7 @@ async function boot() {
       return best ? { name: best.properties.name, km: bestKm, area: best.properties.area } : null;
     },
   };
-  initLilly(lillyState);
+  initNele(lillyState);
 }
 boot();
 /* Wasserwelt: lazy nach erstem Render, kostet den Erstaufbau nichts */

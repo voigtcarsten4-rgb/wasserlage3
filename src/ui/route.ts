@@ -4,8 +4,10 @@
 import maplibregl from 'maplibre-gl';
 import type { MapAPI } from '../map/map';
 import { route, loadGraph, graphMeta, type LngLat, type RouteResult } from '../lib/routing';
+import { activeToday, type Notice } from '../lib/live';
 
 let API: MapAPI | null = null;
+let getNotices: (() => { notices: Notice[] } | null) | null = null;
 let A: LngLat | null = null, B: LngLat | null = null;
 let mA: maplibregl.Marker | null = null, mB: maplibregl.Marker | null = null;
 let pick: 'A' | 'B' | null = null;
@@ -67,6 +69,22 @@ async function compute() {
   finally { busy = false; if (hint) hint.textContent = 'Tippe Start (A) & Ziel (B) auf die Karte — oder nutze 📍 Standort.'; }
 }
 
+/* ELWIS-Sperrungen, die auf der berechneten Route liegen (Wasserstraße oder Schleuse) */
+function elwisOnRoute(r: RouteResult): string {
+  const doc = getNotices ? getNotices() : null; if (!doc) return '';
+  const ww = r.waterways.map(s => s.toLowerCase());
+  const lk = r.locks.map(s => s.toLowerCase());
+  const norm = (s: string) => (s || '').toLowerCase();
+  const hits = doc.notices.filter(activeToday).filter(n => n.type !== 'yellow').filter(n => {
+    const w = norm(n.waterway), txt = w + ' ' + norm(n.description);
+    return ww.some(x => x.length > 4 && (w.includes(x) || x.includes(w) && w.length > 4))
+      || lk.some(name => name.length > 5 && txt.includes(name.replace(/^schleuse\s+/, '')));
+  });
+  if (!hits.length) return `<div class="rt-sum-row" style="color:var(--ok)">✅ Auf deiner Route aktuell keine ernsten ELWIS-Meldungen.</div>`;
+  const ic = (t: string) => t === 'red' ? '🔴' : '🟠';
+  const rows = hits.slice(0, 4).map(n => `<li>${ic(n.type)} <b>${E(n.waterway)}</b>: ${E(String(n.description || n.type_label).slice(0, 90))}${n.detail_url ? ` <a href="${E(n.detail_url)}" target="_blank" rel="noopener">ELWIS ›</a>` : ''}</li>`).join('');
+  return `<div class="rt-elwis"><b>⚠️ ${hits.length} ELWIS-Meldung${hits.length > 1 ? 'en' : ''} auf deiner Route:</b><ul>${rows}</ul></div>`;
+}
 function renderSummary(r: RouteResult | null) {
   const el = $('routeSummary'); if (!el) return;
   el.hidden = false;
@@ -88,7 +106,7 @@ function renderSummary(r: RouteResult | null) {
     <div class="rt-sum-head">🚤 Route auf dem Wasser <span class="rt-beta">Beta</span></div>
     <div class="rt-sum-big"${detourBad ? ' style="opacity:.6"' : ''}><b>${fmtKm(r.distanceKm)}</b> · ~${fmtMin(r.durationMin)}
       <span class="rt-sum-sub">bei ~9 km/h inkl. ~20 min/Schleuse · Luftlinie ${fmtKm(r.crowKm)}</span></div>
-    ${detour}${locks}${conn}${snap}
+    ${detour}${elwisOnRoute(r)}${locks}${conn}${snap}
     <p class="rt-sum-note">Planungshilfe entlang gemappter schiffbarer Wege (OSM). <b>Keine Navigationsgrundlage</b> — verbindlich bleiben ELWIS-Meldungen, amtliche Fahrrinne & Befahrensregeln. Aktuelle Sperrungen siehe „Amtliche Lage".</p>`;
 }
 
@@ -126,8 +144,9 @@ function tryGeo(silent = false) {
     { enableHighAccuracy: true, timeout: 9000 });
 }
 
-export function initRoute(api: MapAPI) {
+export function initRoute(api: MapAPI, noticesProvider?: () => { notices: Notice[] } | null) {
   API = api;
+  getNotices = noticesProvider || null;
   const bar = $('routeBar'); if (!bar) return;
   bar.querySelectorAll<HTMLButtonElement>('.rt-pt').forEach(b => b.addEventListener('click', () => {
     pick = (b.dataset.slot as 'A' | 'B');

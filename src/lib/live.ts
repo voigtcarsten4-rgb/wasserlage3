@@ -35,7 +35,7 @@ const DIRS = ['N','NNO','NO','ONO','O','OSO','SO','SSO','S','SSW','SW','WSW','W'
 const kmhToBft = (k:number) => { const b=[1,6,12,20,29,39,50,62,75,89,103,118]; for(let i=0;i<b.length;i++) if(k<b[i]) return i; return 12; };
 export async function fetchWeather(lat=52.45, lon=13.35): Promise<Weather|null> {
   try {
-    const u = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,weather_code&daily=sunrise,sunset,weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,precipitation_probability_max&forecast_days=5&timezone=Europe%2FBerlin`;
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,weather_code&daily=sunrise,sunset,weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_gusts_10m_max,precipitation_probability_max&forecast_days=7&timezone=Europe%2FBerlin`;
     const r = await fetch(u, { signal: AbortSignal.timeout(12000) }); if (!r.ok) return null;
     const d = await r.json(); const c = d.current;
     return { bft: kmhToBft(c.wind_speed_10m), kmh: Math.round(c.wind_speed_10m), gust: Math.round(c.wind_gusts_10m),
