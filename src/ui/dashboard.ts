@@ -165,9 +165,15 @@ export function initTiefe() {
   const upd = () => {
     const out = document.getElementById('draftVal'); if (out) out.textContent = m2(draftCm());
     localStorage.setItem('wl_draft', inp.value);
+    document.querySelectorAll('#draftPresets button').forEach(b =>
+      b.classList.toggle('on', Math.abs(parseFloat(b.getAttribute('data-d') || '0') - parseFloat(inp.value)) < 0.001));
     renderFTBars();
   };
   inp.addEventListener('input', upd);
+  document.getElementById('draftPresets')?.addEventListener('click', e => {
+    const b = (e.target as HTMLElement).closest('button[data-d]'); if (!b) return;
+    inp.value = b.getAttribute('data-d') || '1.2'; upd();
+  });
   upd();
 }
 
