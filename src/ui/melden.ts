@@ -1,38 +1,18 @@
 /* ═══ Community 3.0 · Melden mit Magic-Link-Login & Foto-Upload (Supabase, RLS) ═══ */
-import { SB_URL, SB_KEY, getSession, sendMagicLink, captureSessionFromUrl, logout, uploadPhoto } from '../lib/auth';
+import { SB_URL, SB_KEY, uploadPhotoAnon } from '../lib/auth';
 const SB = `${SB_URL}/rest/v1`;
 const TITLES: Record<string,string> = { gefahr:'⚠ Gefahr', hinweis:'ℹ️ Info/Tipp', liegeplatz:'🅿️ Liegeplatz frei', erlebnis:'⭐ Schöner Ort' };
 
+/* Kein Login mehr nötig — Foto-Upload ist direkt frei (anon, mit Schutzregeln serverseitig) */
 function renderAuth() {
   const box = document.getElementById('cfAuth'); if (!box) return;
-  const s = getSession();
-  if (s) {
-    box.innerHTML = `<span class="cf-auth-ok">✓ Angemeldet als <b></b> — Foto-Upload frei</span>
-      <button type="button" class="cf-auth-out" id="cfLogout">Abmelden</button>`;
-    (box.querySelector('b') as HTMLElement).textContent = s.email || 'Mitglied';
-    document.getElementById('cfLogout')?.addEventListener('click', () => { logout(); renderAuth(); });
-    (document.getElementById('cfPhoto') as HTMLInputElement)?.removeAttribute('disabled');
-    const lbl = document.getElementById('cfPhotoLbl'); if (lbl) lbl.classList.remove('off');
-  } else {
-    box.innerHTML = `<input id="cfEmail" type="email" placeholder="E-Mail für Login-Link (für Fotos)" autocomplete="email">
-      <button type="button" class="exp-act" id="cfLogin">🔑 Login-Link senden</button>`;
-    (document.getElementById('cfPhoto') as HTMLInputElement)?.setAttribute('disabled','');
-    const lbl = document.getElementById('cfPhotoLbl'); if (lbl) lbl.classList.add('off');
-    document.getElementById('cfLogin')?.addEventListener('click', async () => {
-      const em = (document.getElementById('cfEmail') as HTMLInputElement).value.trim();
-      const hint = document.getElementById('cfHint')!;
-      if (!/^\S+@\S+\.\S+$/.test(em)) { hint.textContent = 'Bitte gültige E-Mail eingeben.'; return; }
-      hint.textContent = 'Sende Login-Link …';
-      hint.textContent = (await sendMagicLink(em).catch(()=>false))
-        ? `✉️ Login-Link an ${em} gesendet — Posteingang öffnen, Link tippen, fertig.`
-        : 'Login-Link konnte nicht gesendet werden — später erneut versuchen.';
-    });
-  }
+  box.innerHTML = '<span class="cf-auth-ok">📷 Foto direkt anhängen — ganz ohne Anmeldung.</span>';
+  (document.getElementById('cfPhoto') as HTMLInputElement)?.removeAttribute('disabled');
+  const lbl = document.getElementById('cfPhotoLbl'); if (lbl) lbl.classList.remove('off');
 }
 
 export function initMelden(onSent: ()=>void) {
   const $ = (id:string)=>document.getElementById(id) as any;
-  captureSessionFromUrl();
   renderAuth();
   let pos: {lat:number;lon:number}|null = null;
   $('cfGeo')?.addEventListener('click', () => {
@@ -56,13 +36,12 @@ export function initMelden(onSent: ()=>void) {
     if ((body.match(/https?:\/\//g)||[]).length > 1) { hint.textContent = 'Bitte ohne Link-Listen melden — maximal ein Link pro Meldung.'; btn.disabled=false; return; }
     if (!body && !place) { hint.textContent = 'Bitte kurz beschreiben, was andere wissen sollen.'; return; }
     btn.disabled = true; btn.textContent = 'Sende …';
-    /* Foto zuerst (nur eingeloggt) */
+    /* Foto direkt hochladen — ohne Login (anon-Upload mit Schutzregeln) */
     let photo_path: string|null = null;
     const file: File|undefined = $('cfPhoto')?.files?.[0];
-    const sess = getSession();
-    if (file && sess) {
+    if (file) {
       btn.textContent = 'Lade Foto …';
-      photo_path = await uploadPhoto(file, sess).catch(()=>null);
+      photo_path = await uploadPhotoAnon(file).catch(()=>null);
       if (!photo_path) hint.textContent = 'Foto konnte nicht geladen werden — Meldung geht ohne Foto raus.';
     }
     const payload: any = { author: name||'Gast', role:'Bootsfahrer', category:cat,

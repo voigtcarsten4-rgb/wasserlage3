@@ -67,3 +67,15 @@ export async function uploadPhoto(file: File, s: Session): Promise<string|null> 
   return r.ok ? path : null;
 }
 export const photoUrl = (path: string) => `${SB_URL}/storage/v1/object/public/post-photos/${path}`;
+
+/* Foto OHNE Login hochladen (anon-Policy mit Datumsordner + 5MB/MIME-Bucket-Limit) */
+export async function uploadPhotoAnon(file: File): Promise<string|null> {
+  if (file.size > 5 * 1024 * 1024) return null;
+  if (!['image/jpeg','image/png','image/webp'].includes(file.type)) return null;
+  const ext = (file.type.split('/')[1] || 'jpg').replace('jpeg','jpg');
+  const path = `${new Date().toISOString().slice(0,10)}/${crypto.randomUUID()}.${ext}`;
+  const r = await fetch(`${SB_URL}/storage/v1/object/post-photos/${path}`, {
+    method: 'POST', headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': file.type },
+    body: file });
+  return r.ok ? path : null;
+}
