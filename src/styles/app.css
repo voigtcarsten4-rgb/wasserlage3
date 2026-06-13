@@ -833,3 +833,23 @@ html.is-offline .badge:not(.err){opacity:.5}
   .route-summary:not([hidden])::before{content:"";display:block;width:42px;height:5px;border-radius:3px;
     background:rgba(127,127,127,.45);margin:-4px auto 10px}
 }
+
+
+/* ═══ Revier-Challenge (Community · P4/P6) ═══ */
+.challenge{margin:14px 0 16px}
+.chal-h{margin:0 0 10px;font-size:1.05rem}
+.chal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.chal-card{display:flex;flex-direction:column;gap:3px;position:relative;padding:13px 40px 13px 14px;border-radius:14px;text-decoration:none;color:inherit;
+  background:linear-gradient(150deg,rgba(63,195,201,.10),rgba(20,48,73,.06));border:1px solid rgba(63,195,201,.22);
+  transition:transform .15s,border-color .15s,box-shadow .15s}
+.chal-card:hover{transform:translateY(-2px);border-color:rgba(217,177,77,.55);box-shadow:0 8px 22px rgba(4,18,31,.14)}
+.chal-ic{font-size:1.4rem;line-height:1}
+.chal-card b{font-size:.92rem}
+.chal-card small{color:var(--ink2);font-size:.76rem;line-height:1.25}
+.chal-pts{position:absolute;top:11px;right:11px;font-style:normal;font-weight:800;font-size:.78rem;
+  background:var(--gold);color:#04121f;border-radius:999px;padding:2px 8px}
+.chal-pts.soon{background:rgba(127,127,127,.22);color:var(--ink2);font-weight:700}
+.chal-rewards{margin-top:10px;padding:12px 14px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:.84rem}
+.chal-rewards b{flex:1 0 100%;margin-bottom:2px}
+.chal-rewards span{color:var(--ink2)}
+@media(max-width:680px){ .chal-grid{grid-template-columns:repeat(2,1fr)} }

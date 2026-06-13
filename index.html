@@ -256,8 +256,23 @@
       <div class="panel glass" id="captainPassWrap"><h3>⚓ Dein Captain-Pass</h3><div id="captainPass"></div></div>
       <div class="panel glass"><h3>🏆 Revierkenner des Monats</h3><div id="leaderboard"></div></div>
     </div>
+    <div class="challenge">
+      <h3 class="chal-h">🎯 Revier-Challenge — mach mit, sammle Punkte</h3>
+      <div class="chal-grid">
+        <a class="chal-card" href="#commForm"><span class="chal-ic">⚠️</span><b>Gefahr melden</b><em class="chal-pts">+10</em><small>Untiefe · Hindernis · Sperrung</small></a>
+        <a class="chal-card" href="#commForm"><span class="chal-ic">🔎</span><b>Hidden Place</b><em class="chal-pts">+12</em><small>Schönen Spot vorschlagen</small></a>
+        <a class="chal-card" href="#commForm"><span class="chal-ic">🅿️</span><b>Liegeplatz prüfen</b><em class="chal-pts">+5</em><small>Frei/belegt bestätigen</small></a>
+        <a class="chal-card" href="#karte"><span class="chal-ic">🌊</span><b>Gelbe Welle bestätigen</b><em class="chal-pts">+5</em><small>Gastliegeplatz auf der Karte</small></a>
+        <a class="chal-card" href="#karte"><span class="chal-ic">⭐</span><b>Route bewerten</b><em class="chal-pts">+4</em><small>Deine gefahrene Strecke</small></a>
+        <a class="chal-card" href="#academy"><span class="chal-ic">🎮</span><b>Game-Mission</b><em class="chal-pts soon">bald</em><small>Captain Academy spielen</small></a>
+      </div>
+      <div class="chal-rewards panel glass">
+        <b>🎁 Belohnungen — kostenlos, kein Kaufzwang:</b>
+        <span>🎖️ Captain-Ränge (Decksmann → Commodore)</span><span>🏅 Badges</span><span>🚀 Early Access für dein Revier</span><span>🧪 Beta-Tester-Rolle</span><span>📜 Digitale Urkunde</span><span>👏 Erwähnung in der Community</span>
+      </div>
+    </div>
     <div class="comm-grid" id="commGrid"></div>
-    <div class="panel glass comm-form">
+    <div class="panel glass comm-form" id="commForm">
       <h3>＋ Jetzt melden — hilf anderen auf dem Wasser</h3>
       <div class="cf-row">
         <select id="cfCat"><option value="gefahr">⚠️ Gefahr</option><option value="hinweis" selected>ℹ️ Hinweis/Tipp</option><option value="liegeplatz">🅿️ Liegeplatz frei</option><option value="erlebnis">⭐ Schöner Ort</option></select>
