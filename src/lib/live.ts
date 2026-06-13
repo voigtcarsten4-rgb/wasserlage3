@@ -13,8 +13,18 @@ export async function fetchNotices(): Promise<NoticesDoc|null> {
   catch { return null; }
 }
 export async function fetchFT(): Promise<{updated_de:string; stand:string; havel_min_cm:number; items:any[]}|null> {
-  try { const r = await fetch(`${WL2}/ft.json?ts=${Date.now()}`, { signal: AbortSignal.timeout(12000) }); return r.ok ? r.json() : null; }
-  catch { return null; }
+  const ts = Date.now();
+  const base = (import.meta as any).env?.BASE_URL || '/';
+  const grab = (u: string) => fetch(u, { signal: AbortSignal.timeout(12000) }).then(r => r.ok ? r.json() : null).catch(() => null);
+  /* Live-2.0-Feed (täglich, Havel/Oder frisch) + erweiterter Elbe–Oder-Datensatz (ft-de.json, mehr Strecken) zusammenführen */
+  const [live, de] = await Promise.all([ grab(`${WL2}/ft.json?ts=${ts}`), grab(`${base}data/ft-de.json?ts=${ts}`) ]);
+  if (!live && !de) return null;
+  const norm = (s: string) => (s || '').toLowerCase().replace(/wasserstrasse|wasserstraße|wasserstr\.?/g, 'ws').replace(/[\s.\-(),]/g, '');
+  const k = (i: any) => `${norm(i.abk || i.group)}|${norm(i.section)}`;
+  const seen = new Set((live?.items || []).map(k));
+  const items = [ ...(live?.items || []), ...((de?.items || []).filter((i: any) => !seen.has(k(i)))) ];
+  const baseDoc = live || de;
+  return { ...baseDoc, items, stand: live?.stand || de?.stand, havel_min_cm: baseDoc.havel_min_cm };
 }
 
 /* Pegelonline: EIN Aggregat-Call statt 27 Einzelrequests (Lehre aus 2.0-Audit) */
