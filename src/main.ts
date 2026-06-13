@@ -10,6 +10,10 @@ import { initCommunity } from './ui/community';
 import { renderSky, startSkyTicker } from './ui/sky';
 import { initMelden } from './ui/melden';
 import { initTouren } from './ui/touren';
+import { initLilly, type LillyState } from './ui/lilly';
+import { initDestination } from './ui/destination';
+import { initEarlyAccess } from './ui/earlyaccess';
+import { initGamification } from './ui/gamification';
 
 /* 4 Tagesphasen: dawn (±45 min um Sonnenaufgang) · day · dusk (±45 min um Untergang) · night */
 function applyTod(sunrise?: string, sunset?: string) {
@@ -133,6 +137,7 @@ async function boot() {
   const state = combine(w, doc?.notices ?? null);
   setAmpel(state); setReco(state, doc, w); setChips(w, doc, ft);
   renderMeldungen(doc); renderWetter(w);
+  initEarlyAccess(); initGamification();
   fetch(`${import.meta.env.BASE_URL}data/pegel.json`).then(r=>r.json()).then(async (pj)=>{
     const uuids = pj.groups.flatMap((g:any)=>g.stations.map((s:any)=>s.uuid));
     renderPegel(await fetchPegel(uuids), ft);
@@ -147,9 +152,38 @@ async function boot() {
     fetch(`${import.meta.env.BASE_URL}data/pois.geojson`).then(r=>r.json()).then(fc => {
       initExplorer(fc.features, (lng,lat) => api.map.flyTo({ center:[lng,lat], zoom: 13.5, speed: 1.4 }));
     }).catch(e => console.error('Explorer-Daten nicht ladbar', e));
+    initDestination(api);
   } else {
     fetch(`${import.meta.env.BASE_URL}data/pois.geojson`).then(r=>r.json()).then(fc => initExplorer(fc.features, ()=>{}));
   }
+
+  /* Lilly: Gastgeberin/Lotsin — antwortet aus echten Live-Daten */
+  const haversine = (la1:number,lo1:number,la2:number,lo2:number) => {
+    const R=6371,dLa=(la2-la1)*Math.PI/180,dLo=(lo2-lo1)*Math.PI/180;
+    const x=Math.sin(dLa/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dLo/2)**2;
+    return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+  };
+  let userPos: {lat:number;lon:number}|null = null;
+  const lillyState: LillyState = {
+    weather: () => w, doc: () => doc, ft: () => ft, ampel: () => state,
+    nearest: async (kinds) => {
+      if (!userPos) {
+        userPos = await new Promise(res => navigator.geolocation
+          ? navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lon:p.coords.longitude}), ()=>res(null), {timeout:8000})
+          : res(null));
+        if (!userPos) return null;
+      }
+      const feats = api ? api.features() : [];
+      let best:any=null, bestKm=Infinity;
+      for (const f of feats) {
+        if (!kinds.includes(f.properties.kind)) continue;
+        const km = haversine(userPos.lat, userPos.lon, f.geometry.coordinates[1], f.geometry.coordinates[0]);
+        if (km < bestKm) { bestKm = km; best = f; }
+      }
+      return best ? { name: best.properties.name, km: bestKm, area: best.properties.area } : null;
+    },
+  };
+  initLilly(lillyState);
 }
 boot();
 /* Wasserwelt: lazy nach erstem Render, kostet den Erstaufbau nichts */

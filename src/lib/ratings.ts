@@ -43,7 +43,8 @@ export function mountRating(host: HTMLElement, poiId: string) {
           body: JSON.stringify({ poi_id: poiId, stars: s, device: device() }) });
         if (!r.ok && r.status !== 409) throw 0;
         localStorage.setItem(ratedKey(poiId), String(s)); paint(s);
-        info.textContent = 'Danke für deine Bewertung';
+        import('./points').then(m => m.award('rating', 'rating-'+poiId)).catch(()=>{});
+        info.textContent = 'Danke für deine Bewertung (+Punkte)';
       } catch { info.textContent = 'Fehler — später erneut'; stars.forEach(x=>x.disabled=false); }
     });
   });

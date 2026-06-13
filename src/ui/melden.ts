@@ -76,7 +76,8 @@ export function initMelden(onSent: ()=>void) {
         body: JSON.stringify(payload), signal: AbortSignal.timeout(15000) });
       if (!r.ok) throw 0;
       localStorage.setItem('wl3_last_report', String(Date.now()));
-      btn.textContent = '✓ Live gemeldet — danke!'; hint.textContent = 'Deine Meldung ist jetzt für alle sichtbar (Status: ungeprüft, ab 3 Bestätigungen: 🟢).';
+      import('../lib/points').then(m => m.award(photo_path?'photo':'report', 'report-'+Date.now())).catch(()=>{});
+      btn.textContent = '✓ Live gemeldet — danke! (+Punkte)'; hint.textContent = 'Deine Meldung ist jetzt für alle sichtbar (Status: ungeprüft, ab 3 Bestätigungen: 🟢).';
       $('cfBody').value=''; $('cfPlace').value=''; if ($('cfPhoto')) $('cfPhoto').value='';
       setTimeout(()=>{ btn.disabled=false; btn.textContent='Meldung absenden'; }, 4000);
       onSent();

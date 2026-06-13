@@ -50,6 +50,7 @@ export async function initCommunity() {
           const n = await rr.json();
           if (typeof n === 'number' && n >= 0) {
             localStorage.setItem('wl3_confirmed', JSON.stringify([...confirmed(), btn.dataset.id]));
+            import('../lib/points').then(m => m.award('confirm', 'confirm-'+btn.dataset.id)).catch(()=>{});
             btn.textContent = `✓ Bestätigt · ${n}`; btn.classList.add('done');
             if (n >= 3) { const h = btn.closest('.comm-card')?.querySelector('.comm-badge'); if (h) h.outerHTML = '<span class="comm-badge ok">🟢 von Community bestätigt</span>'; }
           } else { btn.disabled = false; }

@@ -80,6 +80,17 @@
     </div>
   </header>
 
+  <!-- ═══ ZIEL-EINSTIEG ═══ -->
+  <section class="dest-stage" id="ziel">
+    <h2 class="dest-h">Wo möchtest du heute hin?</h2>
+    <div class="dest-bar glass">
+      <input id="destQ" type="search" placeholder="🔍 Ziel suchen: Hafen, Restaurant, Badestelle, Schleuse, Ort …" autocomplete="off" aria-label="Ziel suchen">
+      <div class="dest-res" id="destRes" hidden></div>
+    </div>
+    <div class="dest-cats" id="destCats"></div>
+    <div class="dest-card glass" id="destCard" hidden></div>
+  </section>
+
   <!-- ═══ MODI ═══ -->
   <nav class="modes" id="modes" aria-label="Zielgruppen-Modus"></nav>
 
@@ -179,6 +190,10 @@
   <section class="sect" id="community">
     <h2 class="sect-h">💬 Community — Augen auf dem Wasser</h2>
     <p class="sect-sub">Echte Hinweise von echten Bootsfahrern. <span class="badge" id="bdgComm">lädt…</span></p>
+    <div class="comm-rank">
+      <div class="panel glass" id="captainPassWrap"><h3>⚓ Dein Captain-Pass</h3><div id="captainPass"></div></div>
+      <div class="panel glass"><h3>🏆 Revierkenner des Monats</h3><div id="leaderboard"></div></div>
+    </div>
     <div class="comm-grid" id="commGrid"></div>
     <div class="panel glass comm-form">
       <h3>＋ Jetzt melden — hilf anderen auf dem Wasser</h3>
@@ -228,6 +243,28 @@
       <a class="cta-btn gold" href="https://wave-bite.com/" target="_blank" rel="noopener">🌊 Wave Bite entdecken</a>
       <a class="cta-btn ghost" href="https://voigtcarsten4-rgb.github.io/wave-bite-water-patrol/?from=wasserlage" target="_blank" rel="noopener">🚤 Water Patrol Game</a>
     </div>
+  </section>
+
+  <!-- ═══ EARLY ACCESS / REVIER-UPDATES ═══ -->
+  <section class="sect ea" id="earlyaccess">
+    <h2 class="sect-h">📬 Werde benachrichtigt, wenn dein Revier live geht</h2>
+    <p class="sect-sub">Karte ist deutschlandweit — die amtliche Live-Lage bauen wir Revier für Revier aus. Trag dich ein, dann sagt Lilly dir Bescheid, sobald dein Bundesland dran ist. Kein Spam, jederzeit abbestellbar.</p>
+    <form class="ea-form panel glass" id="eaForm">
+      <div class="ea-row">
+        <input id="eaName" type="text" placeholder="Name (optional)" autocomplete="name">
+        <input id="eaEmail" type="email" placeholder="E-Mail" autocomplete="email" required>
+        <select id="eaLand" aria-label="Bundesland"><option value="">Bundesland (optional)</option></select>
+      </div>
+      <div class="ea-int">
+        <label><input type="checkbox" name="eaInt" value="live_lage"> Live-Lage (ELWIS/Pegel)</label>
+        <label><input type="checkbox" name="eaInt" value="challenge"> Revier-Challenge</label>
+        <label><input type="checkbox" name="eaInt" value="newsletter"> Monatliche Wasserlage</label>
+        <label><input type="checkbox" name="eaInt" value="events"> Wave-Bite-Events</label>
+      </div>
+      <label class="ea-consent"><input type="checkbox" id="eaConsent"> Ich möchte per E-Mail benachrichtigt werden und stimme der Speicherung meiner Angaben zu diesem Zweck zu (DSGVO). Widerruf jederzeit.</label>
+      <button class="cta-btn gold" type="submit">Benachrichtige mich</button>
+      <p class="ea-hint" id="eaHint"></p>
+    </form>
   </section>
 
   <!-- ═══ 9/10 · FOOTER: Rechtliches, Quellen, App ═══ -->
