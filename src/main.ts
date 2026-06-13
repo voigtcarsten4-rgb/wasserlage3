@@ -16,6 +16,7 @@ import { initDestination } from './ui/destination';
 import { initRoute } from './ui/route';
 import { initEarlyAccess } from './ui/earlyaccess';
 import { initGamification } from './ui/gamification';
+import { initAcademy } from './ui/academy';
 import { initPWA } from './lib/pwa';
 import { initShare } from './ui/share';
 import { initLegal } from './ui/legal';
@@ -180,7 +181,7 @@ async function boot() {
   const state = combine(w, doc?.notices ?? null);
   setAmpel(state); setReco(state, doc, w); setChips(w, doc, ft);
   renderMeldungen(doc, deDoc); renderWetter(w); initFooter(w); renderFT(ft); initTiefe();
-  initEarlyAccess(); initGamification(); initShare(); initLegal();
+  initEarlyAccess(); initGamification(); initAcademy(); initShare(); initLegal();
   fetch(`${import.meta.env.BASE_URL}data/pegel.json`).then(r=>r.json()).then(async (pj)=>{
     const uuids = pj.groups.flatMap((g:any)=>g.stations.map((s:any)=>s.uuid));
     renderPegel(await fetchPegel(uuids), ft);

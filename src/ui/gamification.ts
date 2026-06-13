@@ -13,7 +13,7 @@ const rankLabel = (id:string) => (RANKS.find(r=>r[1]===id)||RANKS[0])[2];
 const nextRank = (pts:number) => RANKS.find(r=>r[0]>pts);
 const BADGES: Record<string,[string,string]> = {
   first_report:['📣','Erste Meldung'], confirmer:['👍','Bestätiger'], rater:['⭐','Bewerter'],
-  photographer:['📷','Fotograf'], local_hero:['🏅','Revierkenner'],
+  photographer:['📷','Fotograf'], local_hero:['🏅','Revierkenner'], captain_runner:['🚤','Water-Patrol-Captain'],
 };
 
 export function initGamification() {

@@ -974,3 +974,22 @@ html.is-offline .badge:not(.err){opacity:.5}
 .rt-comm-src{margin-top:.45rem;font-size:.72rem;opacity:.6}
 .rt-lock-hrs{opacity:.75;font-weight:400}
 .nav-next-list .nx-r.p1 .nx-i{filter:drop-shadow(0 0 4px rgba(255,120,90,.5))}
+
+/* ═══ Phase 2 · Captain Academy — Inline-Spiel + Missionen ═══ */
+.academy .acad-hero{flex-wrap:wrap}
+.acad-hero-acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.acad-stage{flex-basis:100%;width:100%;margin-top:16px;border-radius:14px;overflow:hidden;background:#04121f;border:1px solid rgba(123,216,232,.28);box-shadow:0 10px 34px rgba(0,0,0,.4)}
+.acad-stage-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:linear-gradient(180deg,rgba(11,30,59,.95),rgba(4,18,31,.95));color:#dff3f8;font-weight:600;font-size:.9rem}
+.acad-stage-btns{display:flex;gap:6px}
+.acad-stage-btns button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#eafffe;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:.85rem}
+.acad-stage-btns button:hover{background:rgba(255,255,255,.16)}
+.acad-frame-wrap{position:relative;width:100%;height:min(78vh,720px)}
+.acad-frame{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#04121f}
+.acad-card-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.acad-mini{display:inline-flex;align-items:center;gap:4px;font-size:.82rem;font-weight:600;text-decoration:none;padding:5px 10px;border-radius:999px;background:rgba(63,195,201,.12);border:1px solid rgba(63,195,201,.3);color:#bdeef2}
+.acad-mini:hover{background:rgba(63,195,201,.22)}
+.acad-mini.game{background:rgba(232,181,77,.14);border-color:rgba(232,181,77,.38);color:#f0d28a}
+.acad-mini.game:hover{background:rgba(232,181,77,.24)}
+.acad-status{font-size:.9rem;font-weight:600;color:#dff3f8;padding:8px 0}
+.acad-roadmap{opacity:.7;margin:.2rem 0 0}
+@media(max-width:560px){ .acad-frame-wrap{height:min(72vh,560px)} .acad-hero-acts .cta-btn{flex:1 1 auto;text-align:center} }

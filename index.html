@@ -269,7 +269,7 @@
         <a class="chal-card" href="#commForm"><span class="chal-ic">🅿️</span><b>Liegeplatz prüfen</b><em class="chal-pts">+5</em><small>Frei/belegt bestätigen</small></a>
         <a class="chal-card" href="#karte"><span class="chal-ic">🌊</span><b>Gelbe Welle bestätigen</b><em class="chal-pts">+5</em><small>Gastliegeplatz auf der Karte</small></a>
         <a class="chal-card" href="#karte"><span class="chal-ic">⭐</span><b>Route bewerten</b><em class="chal-pts">+4</em><small>Deine gefahrene Strecke</small></a>
-        <a class="chal-card" href="#academy"><span class="chal-ic">🎮</span><b>Game-Mission</b><em class="chal-pts soon">bald</em><small>Captain Academy spielen</small></a>
+        <a class="chal-card" href="#academy"><span class="chal-ic">🎮</span><b>Captain Academy</b><em class="chal-pts">spielen</em><small>Water Patrol — jetzt spielbar</small></a>
       </div>
       <div class="chal-rewards panel glass">
         <b>🎁 Belohnungen — kostenlos, kein Kaufzwang:</b>
@@ -327,27 +327,46 @@
       <small>Karte: ganz Deutschland · Live-Lage (ELWIS/Pegel): Pilotregion Berlin/Brandenburg, weitere Reviere folgen</small></p>
   </section>
 
-  <!-- ═══ CAPTAIN ACADEMY · GAME ═══ -->
+  <!-- ═══ CAPTAIN ACADEMY · GAME (Phase 2) ═══ -->
   <section class="sect academy" id="academy">
     <h2 class="sect-h">🎓 Captain Academy — spielend besser fahren</h2>
-    <p class="sect-sub">Trainiere Revierwissen, Navigation und den Blick für Gefahren im <b>Wave Bite Water Patrol</b>-Spiel. Bald sammelst du dabei Punkte für deinen Captain-Pass.</p>
+    <p class="sect-sub">Trainiere Revierwissen, Navigation und den Blick für Gefahren im <b>Wave Bite · Water Patrol</b>-Einsatzsimulator — direkt hier im Browser. Dein Fortschritt zählt für denselben <a href="#community">Captain-Pass</a>.</p>
     <div class="acad-hero panel glass">
       <div class="acad-hero-body">
-        <span class="acad-hero-badge">🚤 Water Patrol</span>
+        <span class="acad-hero-badge">🚤 Water Patrol · Captain's Run</span>
         <h3>Patrouilliere dein Revier — lerne beim Spielen</h3>
-        <p>Meistere Schleusen, lies die Fahrrinne, erkenne Untiefen &amp; Sperrungen. Direkt im Browser, kostenlos.</p>
-        <a class="cta-btn gold" href="https://voigtcarsten4-rgb.github.io/wave-bite-water-patrol/?from=wasserlage" target="_blank" rel="noopener">🎮 Spiel öffnen</a>
+        <p>Steuere dein Patrouillenboot durch die Reviere Berlin-Brandenburgs, meistere Schleusen, lies die Fahrrinne und erkenne Gefahren. Kostenlos.</p>
+        <div class="acad-hero-acts">
+          <button type="button" class="cta-btn gold" id="acadPlay">▶ Hier spielen</button>
+          <a class="cta-btn ghost" id="acadOpen" href="https://voigtcarsten4-rgb.github.io/wave-bite-water-patrol/?from=wasserlage" target="_blank" rel="noopener">↗ In neuem Tab</a>
+        </div>
+      </div>
+      <div class="acad-stage" id="acadStage" hidden>
+        <div class="acad-stage-bar">
+          <span>🎮 Wave Bite · Water Patrol</span>
+          <span class="acad-stage-btns">
+            <button type="button" id="acadFs" title="Vollbild">⛶ Vollbild</button>
+            <button type="button" id="acadClose" title="Spiel schließen">✕</button>
+          </span>
+        </div>
+        <div class="acad-frame-wrap" id="acadFrameWrap"></div>
       </div>
     </div>
     <div class="acad-grid">
-      <div class="panel glass acad-card"><span class="acad-ic">🧭</span><h4>Revierwissen</h4><p>Wasserstraßen, Reviere &amp; Schifffahrtszeichen kennenlernen.</p></div>
-      <div class="panel glass acad-card"><span class="acad-ic">📐</span><h4>Navigation üben</h4><p>Kurs halten, Fahrrinne lesen, sicher ankommen.</p></div>
-      <div class="panel glass acad-card"><span class="acad-ic">⚠️</span><h4>Gefahren erkennen</h4><p>Untiefen, Sog &amp; Wellenschlag, aktuelle Sperrungen.</p></div>
-      <div class="panel glass acad-card"><span class="acad-ic">🚪</span><h4>Schleusen verstehen</h4><p>Ein- &amp; Ausfahren, Wartezeiten, Signale richtig deuten.</p></div>
+      <div class="panel glass acad-card"><span class="acad-ic">🧭</span><h4>Revierwissen</h4><p>Wasserstraßen, Reviere &amp; Schifffahrtszeichen kennenlernen.</p>
+        <div class="acad-card-acts"><a class="acad-mini" href="#touren">📖 Im Revier</a><a class="acad-mini game" href="https://voigtcarsten4-rgb.github.io/wave-bite-water-patrol/?from=wasserlage&amp;mission=revierwissen" target="_blank" rel="noopener">🎮 Üben</a></div></div>
+      <div class="panel glass acad-card"><span class="acad-ic">📐</span><h4>Navigation üben</h4><p>Kurs halten, Fahrrinne lesen, sicher ankommen.</p>
+        <div class="acad-card-acts"><a class="acad-mini" href="#karte">🗺 Zur Karte</a><a class="acad-mini game" href="https://voigtcarsten4-rgb.github.io/wave-bite-water-patrol/?from=wasserlage&amp;mission=navigation" target="_blank" rel="noopener">🎮 Üben</a></div></div>
+      <div class="panel glass acad-card"><span class="acad-ic">⚠️</span><h4>Gefahren erkennen</h4><p>Untiefen, Sog &amp; Wellenschlag, aktuelle Sperrungen.</p>
+        <div class="acad-card-acts"><a class="acad-mini" href="#sicherheit">🛟 Sicherheit</a><a class="acad-mini game" href="https://voigtcarsten4-rgb.github.io/wave-bite-water-patrol/?from=wasserlage&amp;mission=gefahren" target="_blank" rel="noopener">🎮 Üben</a></div></div>
+      <div class="panel glass acad-card"><span class="acad-ic">🚪</span><h4>Schleusen verstehen</h4><p>Ein- &amp; Ausfahren, Wartezeiten, Signale richtig deuten.</p>
+        <div class="acad-card-acts"><a class="acad-mini" href="#karte">🚪 Auf der Karte</a><a class="acad-mini game" href="https://voigtcarsten4-rgb.github.io/wave-bite-water-patrol/?from=wasserlage&amp;mission=schleusen" target="_blank" rel="noopener">🎮 Üben</a></div></div>
+      <div class="panel glass acad-card"><span class="acad-ic">🎯</span><h4>Revier-Challenge</h4><p>Wissen testen &amp; Punkte für den Captain-Pass sammeln.</p>
+        <div class="acad-card-acts"><a class="acad-mini" href="#community">🏆 Challenge</a><a class="acad-mini game" href="https://voigtcarsten4-rgb.github.io/wave-bite-water-patrol/?from=wasserlage&amp;mission=challenge" target="_blank" rel="noopener">🎮 Üben</a></div></div>
     </div>
     <div class="acad-foot">
-      <a class="cta-btn ghost" href="https://voigtcarsten4-rgb.github.io/wave-bite-water-patrol/?from=wasserlage" target="_blank" rel="noopener">🏆 Community-Challenge starten</a>
-      <span class="acad-soon">📊 Monatsrangliste &amp; Captain-Pass-Punkte — in Vorbereitung</span>
+      <div class="acad-status" id="acadGameStatus">📊 Spiel-Fortschritt &amp; Captain-Pass-Punkte werden synchronisiert, sobald du im Spiel Einsätze abschließt.</div>
+      <p class="acad-roadmap"><small>🛣️ Roadmap: Das Spiel läuft aktuell als eigenständige Wave-Bite-App; die direkte Punkte-Rückmeldung an den Captain-Pass und der Umzug auf die Wave-Bite-Plattform sind in Arbeit.</small></p>
     </div>
   </section>
 
