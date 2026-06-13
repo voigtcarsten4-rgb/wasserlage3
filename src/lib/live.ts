@@ -36,6 +36,20 @@ export async function fetchPegel(uuids: string[]): Promise<Gauge[]> {
   return out;
 }
 
+export interface Trend { dir:-1|0|1; delta:number; strong:boolean }
+/* Trend je Pegel aus der ~8h-Messreihe (steigend/fallend/stabil) — nur für angezeigte Pegel aufrufen */
+export async function fetchTrend(uuid:string): Promise<Trend|null> {
+  try {
+    const r = await fetch(`https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations/${uuid}/W/measurements.json?start=PT8H`, { signal: AbortSignal.timeout(9000) });
+    if (!r.ok) return null;
+    const m = await r.json();
+    if (!Array.isArray(m) || m.length < 3) return null;
+    const delta = Math.round(m[m.length-1].value - m[0].value);
+    const dir: -1|0|1 = Math.abs(delta) < 3 ? 0 : (delta > 0 ? 1 : -1);
+    return { dir, delta, strong: Math.abs(delta) >= 15 };
+  } catch { return null; }
+}
+
 export interface Weather { bft:number; kmh:number; gust:number; dir:string; temp:number; code:number;
   sunrise:string; sunset:string; daily:any; fetched:string }
 const DIRS = ['N','NNO','NO','ONO','O','OSO','SO','SSO','S','SSW','SW','WSW','W','WNW','NW','NNW'];

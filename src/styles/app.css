@@ -751,3 +751,10 @@ html.is-offline .badge:not(.err){opacity:.5}
 .draft-presets button:hover { background: rgba(63,195,201,.18); transform: translateY(-1px); }
 .draft-presets button.on { background: rgba(63,195,201,.32); border-color: var(--cyan, #3FC3C9); color: #eafaff; }
 @media (prefers-reduced-motion: reduce) { .draft-presets button { transition: none; } .draft-presets button:hover { transform: none; } }
+
+/* Pegel-Trendpfeil (8-h) */
+.pg-trend { font-weight: 800; font-size: .85em; margin-left: 4px; }
+.pg-trend.up { color: #f0c674; }      /* steigend — beachten */
+.pg-trend.down { color: #76e6b0; }    /* fallend */
+.pg-trend.flat { color: var(--ink2, #8fb0bd); }
+.pg-trend.strong { color: #ff9a8a; }  /* starke Änderung */

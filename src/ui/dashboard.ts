@@ -1,6 +1,6 @@
 /* ═══ Kapitäns-Dashboard · ELWIS / Wetter / Pegel — immer mit Quelle + Stand ═══ */
 import type { NoticesDoc, Weather, Gauge } from '../lib/live';
-import { activeToday } from '../lib/live';
+import { activeToday, fetchTrend } from '../lib/live';
 
 const E = (s:any) => { const d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; };
 const $ = (id:string) => document.getElementById(id)!;
@@ -140,9 +140,31 @@ export function renderPegel(gauges: Gauge[], ft: {stand:string; havel_min_cm:num
     ? `<div class="pg-head ${nHi ? 'hi' : 'lo'}">${nHi ? `🔴 ${nHi} Pegel mit Hochwasser-Lage` : ''}${nHi && nLo ? ' · ' : ''}${nLo ? `🟡 ${nLo} Pegel mit Niedrigwasser` : ''} <small>(von ${nKnown} amtlich eingestuften)</small></div>`
     : (nKnown ? `<div class="pg-head ok">🟢 Alle ${nKnown} eingestuften Pegel im Mittelwasser-Bereich</div>` : '');
   el.innerHTML = head + top.map(g=>`<div class="kv"><span>${E(g.shortname)} <small style="color:var(--ink2)">${E(g.water?.shortname??'')}</small>${pill(g)}</span>
-      <b>${g.currentMeasurement?Math.round(g.currentMeasurement.value)+' cm':'—'}</b></div>`).join('')
+      <b>${g.currentMeasurement?Math.round(g.currentMeasurement.value)+' cm':'—'}<span class="pg-trend" data-tr="${E(g.uuid)}"></span></b></div>`).join('')
     + (ft?`<div class="kv"><span>⚓ Fahrrinne Havel (min)</span><b>${(ft.havel_min_cm/100).toFixed(2).replace('.',',')} m</b></div>`:'')
-    + `<div class="row"><span class="ic">ℹ️</span><div class="m">Einstufung nach amtlichen WSV-Kennwerten (Niedrig-/Mittel-/Hochwasser, schiffbare Marken NSW/HSW)${ft?` · Fahrrinnentiefen ELWIS, Stand ${E(ft.stand)}`:''}. Verbindlich: ELWIS & amtliche Fahrrinne.</div></div>`;
+    + `<div class="row"><span class="ic">ℹ️</span><div class="m">Einstufung nach amtlichen WSV-Kennwerten (Niedrig-/Mittel-/Hochwasser, schiffbare Marken NSW/HSW)${ft?` · Fahrrinnentiefen ELWIS, Stand ${E(ft.stand)}`:''} · Pfeil = 8-h-Trend. Verbindlich: ELWIS & amtliche Fahrrinne.</div></div>`;
+  void enrichTrends(top.filter(g => g.currentMeasurement).map(g => g.uuid));
+}
+
+/* Trend-Pfeile (steigend/fallend/stabil) nur für die angezeigten Pegel — gedrosselt (5 parallel) */
+async function enrichTrends(uuids: string[]) {
+  const q = uuids.slice(0, 20);
+  let idx = 0;
+  const worker = async () => {
+    while (idx < q.length) {
+      const uuid = q[idx++];
+      const tr = await fetchTrend(uuid);
+      const span = document.querySelector<HTMLElement>(`.pg-trend[data-tr="${uuid}"]`);
+      if (!tr || !span) continue;
+      const ic = tr.dir === 1 ? '▲' : tr.dir === -1 ? '▼' : '▬';
+      const cls = tr.dir === 1 ? 'up' : tr.dir === -1 ? 'down' : 'flat';
+      const sign = tr.delta > 0 ? '+' : '';
+      span.className = `pg-trend ${cls}${tr.strong ? ' strong' : ''}`;
+      span.textContent = ` ${ic}`;
+      span.title = `8-h-Trend: ${sign}${tr.delta} cm${tr.strong ? ' (stark)' : ''}`;
+    }
+  };
+  await Promise.all(Array.from({ length: 5 }, worker));
 }
  
 
