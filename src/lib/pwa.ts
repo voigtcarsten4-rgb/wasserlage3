@@ -2,9 +2,24 @@
 export function initPWA() {
   /* SW nur in Produktion registrieren (im Dev stört es HMR) */
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    const hadController = !!navigator.serviceWorker.controller;   // Bestandsbesucher?
+    let reloaded = false;
+    /* Neue Version übernimmt sofort → Seite EINMAL neu laden (behebt Stale-Cache dauerhaft) */
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || reloaded) return; reloaded = true; location.reload();
+    });
     window.addEventListener('load', () => {
       navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL })
-        .catch(() => {});
+        .then(reg => {
+          reg.update();
+          setInterval(() => reg.update().catch(()=>{}), 60 * 60 * 1000);  // stündlich auf Updates prüfen
+          reg.addEventListener('updatefound', () => {
+            const nw = reg.installing; if (!nw) return;
+            nw.addEventListener('statechange', () => {
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) nw.postMessage('skipWaiting');
+            });
+          });
+        }).catch(() => {});
     });
   }
 
