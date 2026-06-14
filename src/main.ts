@@ -211,7 +211,7 @@ async function boot() {
   const state = combine(w, doc?.notices ?? null);
   setAmpel(state); setReco(state, doc, w); setChips(w, doc, ft);
   if (snapNote) { const _src = document.getElementById('ampelSrc'); if (_src) _src.textContent = snapNote; }
-  renderMeldungen(doc, deDoc); renderWetter(w); initFooter(w); initTiefeSim(ft);
+  renderMeldungen(doc, deDoc); renderWetter(w); initFooter(w); initTiefeSim(ft, { weather: w, notices: doc?.notices || null });
   initEarlyAccess(); initGamification(); initAcademy(); initShare(); initLegal();
   fetch(`${import.meta.env.BASE_URL}data/pegel.json`).then(r=>r.json()).then(async (pj)=>{
     const uuids = pj.groups.flatMap((g:any)=>g.stations.map((s:any)=>s.uuid));
