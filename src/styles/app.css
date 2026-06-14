@@ -1193,3 +1193,16 @@ html[data-tod="night"] .wl-src a,html[data-tod="dusk"] .wl-src a{color:var(--cya
 .rt-comm-trust.ok{background:rgba(39,192,141,.18);color:var(--ok,#27c08d)}
 .rt-comm-trust.warn{background:rgba(245,183,60,.18);color:var(--warn,#f5b73c)}
 .rt-comm-trust.mute{background:rgba(127,150,170,.16);color:var(--ink2)}
+
+/* ── Tourismusmodus · Tour-Empfehlung (Milestone 28) ── */
+.ts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.ts-card{border-radius:var(--r-lg,16px);padding:14px 16px 14px 19px;cursor:pointer;display:flex;flex-direction:column;gap:6px;border:1px solid var(--glass-brd);position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s}
+.ts-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(var(--cyan,#3FC3C9),var(--gold,#D9B14D))}
+.ts-card:hover{transform:translateY(-2px);box-shadow:0 14px 34px -18px rgba(10,37,64,.5)}
+.ts-card:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.ts-kick{font-size:11px;letter-spacing:.04em;text-transform:uppercase;font-weight:800;color:var(--cyan-deep,#19719A)}
+html[data-tod="night"] .ts-kick,html[data-tod="dusk"] .ts-kick{color:var(--cyan-soft,#9fe9ef)}
+.ts-name{font:800 17px/1.2 var(--font-h);color:var(--ink);margin:1px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ts-facts{font-size:12px;color:var(--ink2)}
+.ts-why{font-size:12.5px;color:var(--ink)}
+@media(max-width:560px){.ts-grid{grid-template-columns:1fr}}

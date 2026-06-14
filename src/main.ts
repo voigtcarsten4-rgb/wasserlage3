@@ -15,6 +15,7 @@ import { initTouren } from './ui/touren';
 import { initTourenDE } from './ui/touren_de';
 import { initEventsDE } from './ui/events_de';
 import { initFavorites } from './ui/favorites';
+import { initTourSuggest } from './ui/toursuggest';
 import { initNele, type NeleState } from './ui/nele';
 import { initDestination } from './ui/destination';
 import { initRoute, setRouteDestination } from './ui/route';
@@ -191,6 +192,7 @@ async function boot() {
   initCommunity();
   initTouren();
   initTourenDE();
+  initTourSuggest();
   initEventsDE();
   initFavorites();
   initChecklists();
