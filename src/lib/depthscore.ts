@@ -20,7 +20,7 @@ export interface DepthScoreInput {
   draftCm: number;          // Tiefgang des Bootes (cm)
   recCm: number;            // empfohlene Kielreserve (cm)
   depthsCm: number[];       // gemeldete ELWIS-Tiefen im aktuellen Scope (cm)
-  scopeLabel: string;       // z. B. „Untere Havel" oder „alle gemeldeten Reviere"
+  scopeLabel: string;       // z. B. „Untere Havel" oder „alle gemeldeten Reviere"
   wind?: { lvl: Lvl; text: string } | null;                                   // aus windAdvice (zielgruppen-kalibriert)
   closures?: { count: number; severe: boolean; first?: string } | null;       // ELWIS-Sperrungen auf der Strecke
   pegel?: { dir: -1 | 0 | 1; delta: number; strong: boolean; station: string } | null; // Pegel-Trend (Pegelonline)
