@@ -5,7 +5,7 @@ import maplibregl from 'maplibre-gl';
 import type { MapAPI } from '../map/map';
 import { route, loadGraph, graphMeta, type LngLat, type RouteResult } from '../lib/routing';
 import { activeToday, type Notice } from '../lib/live';
-import { fetchGeoReports, getCachedReports, relAge, type GeoReport } from '../lib/reports';
+import { fetchGeoReports, getCachedReports, relAge, trust, type GeoReport } from '../lib/reports';
 import { loadLockHours, lockHoursFor, loadSpeedZones, speedForWaterways } from '../lib/datamodel';
 import { currentMode } from './modes';
 import { windAdvice } from '../lib/wind';
@@ -585,7 +585,8 @@ function communityOnRoute(r: RouteResult): { html: string; count: number; danger
     const conf = rep.confirmed ? ' · 🟢 bestätigt' : '';
     const where = dist > 250 ? ` · ~${Math.round(dist)} m abseits` : '';
     const txt = String(rep.body || rep.title || '').slice(0, 90);
-    return `<li>${ic[rep.category] || '📍'} <b>${E(rep.place || rep.title || 'Meldung')}</b>${txt ? ': ' + E(txt) : ''}<span class="rt-comm-meta">${relAge(rep.ageH)}${conf}${where}${stale}</span></li>`;
+    const tr = trust(rep);
+    return `<li>${ic[rep.category] || '📍'} <b>${E(rep.place || rep.title || 'Meldung')}</b>${txt ? ': ' + E(txt) : ''}<span class="rt-comm-meta">${relAge(rep.ageH)}${conf}${where}${stale} <span class="rt-comm-trust ${tr.cls}">${tr.label} ${tr.score}</span></span></li>`;
   }).join('');
   const danger = hits.filter(h => h.rep.category === 'gefahr' && !h.rep.stale).length;
   const head = danger ? `⚠️ ${danger} Community-Gefahr${danger > 1 ? 'en' : ''} + weitere Meldungen auf deiner Route`

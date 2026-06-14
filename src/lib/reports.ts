@@ -49,6 +49,18 @@ export async function fetchGeoReports(force = false): Promise<GeoReport[]> {
 
 export const getCachedReports = (): GeoReport[] => cache?.rows ?? [];
 
+/* M27 · Community 2.0 — Vertrauensscore (0–100) aus Bestätigungen × Aktualität, veraltete abgewertet. */
+export function trust(r: GeoReport): { score: number; label: string; cls: string } {
+  let s = r.confirmed ? 70 : 42;
+  s += Math.min(20, (r.confirms || 0) * 5);
+  s += r.ageH < 6 ? 12 : r.ageH < 24 ? 6 : r.ageH < 72 ? 2 : 0;
+  if (r.stale) s = Math.min(s, 30);
+  s = Math.max(0, Math.min(100, Math.round(s)));
+  const label = r.stale ? 'veraltet' : s >= 70 ? 'vertrauenswürdig' : s >= 45 ? 'plausibel' : 'ungeprüft';
+  const cls = (r.stale || s < 45) ? 'mute' : s >= 70 ? 'ok' : 'warn';
+  return { score: s, label, cls };
+}
+
 /* Menschliche Altersangabe für Lilly & Routenzusammenfassung */
 export function relAge(ageH: number): string {
   if (ageH < 1) return 'vor wenigen Minuten';

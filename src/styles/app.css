@@ -1187,3 +1187,9 @@ html[data-tod="night"] .wl-src a,html[data-tod="dusk"] .wl-src a{color:var(--cya
 .wl-near{text-align:left;background:rgba(63,195,201,.10);border:1px solid var(--glass-brd);border-radius:10px;padding:8px 11px;color:var(--ink);cursor:pointer;font:500 12.5px var(--font-b)}
 .wl-near b{font-weight:700}
 .wl-near:hover{border-color:var(--cyan,#3FC3C9)}
+
+/* ── Community Vertrauensscore (Milestone 27) ── */
+.rt-comm-trust{display:inline-block;font-size:10px;font-weight:800;border-radius:5px;padding:1px 6px;margin-left:4px;white-space:nowrap}
+.rt-comm-trust.ok{background:rgba(39,192,141,.18);color:var(--ok,#27c08d)}
+.rt-comm-trust.warn{background:rgba(245,183,60,.18);color:var(--warn,#f5b73c)}
+.rt-comm-trust.mute{background:rgba(127,150,170,.16);color:var(--ink2)}
