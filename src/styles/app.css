@@ -38,7 +38,8 @@ html{scroll-behavior:smooth}
 body{font-family:var(--font-b);color:var(--ink);background:var(--bg-grad,
   linear-gradient(180deg,var(--ocean-900) 0%,var(--ocean-800) 30%,#10405f 70%,#19719A 100%)) fixed;
   min-height:100vh;transition:background 1.2s ease}
-#water3d{position:fixed;inset:0;z-index:0;pointer-events:none}
+#water3d{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;transition:opacity 1.1s ease}
+#water3d.ready{opacity:1}
 #water3d canvas{width:100%!important;height:100%!important;display:block}
 #app{position:relative;z-index:1}
 .hero{background:transparent}
@@ -364,6 +365,7 @@ html[data-tod="night"] .comm-form input,html[data-tod="night"] .comm-form select
   background:linear-gradient(135deg,#ffffff,#FBF6EC);box-shadow:0 12px 34px -10px rgba(20,48,73,.45);transition:transform .2s,box-shadow .2s}
 #neleFab:hover{transform:translateY(-2px);box-shadow:0 16px 40px -10px rgba(20,48,73,.55)}
 #nele.is-open #neleFab{display:none!important}
+#nelePanel[hidden]{display:none!important} /* Fix: hidden-Attribut schlaegt die #nelePanel{display:flex}-Regel — Panel schliesst wirklich */
 .nele-av{display:block;width:32px;height:32px;border-radius:50%;overflow:hidden;flex:0 0 auto;background:#dfeaf2;box-shadow:0 0 0 2px #fff,0 0 0 3.5px rgba(217,177,77,.6)}
 .nele-av video,.nele-av img{width:100%;height:100%;object-fit:cover;display:block}
 #neleFab .nele-pulse{position:absolute;inset:0;border-radius:999px;box-shadow:0 0 0 0 rgba(217,177,77,.55);pointer-events:none}

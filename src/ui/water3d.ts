@@ -1,199 +1,96 @@
-/* ═══ Wasserwelt 3.0 · Three.js · realistisches Tiefen-Wasser + Himmel ═══
- * Palette nach klarem Türkiswasser (Sandgrund→Türkis→Tiefblau), animierte Kaustik in der
- * Flachwasserzone, Fresnel-Himmelreflexion, Sonnen-/Mond-Glitzerpfad der dem ECHTEN Stand
- * von Sonne/Mond folgt (aus Sonnenauf-/untergang). Reagiert auf data-tod & data-wx.
- * Leichtgewichtig (low-power, kein Postprocessing). */
-type V3 = [number, number, number];
-interface Phase { top:V3; horizon:V3; sun:V3; sand:V3; shallow:V3; deep:V3; }
-const PHASES: Record<string, Phase> = {
-  dawn:  { top:[0.13,0.18,0.34], horizon:[0.92,0.52,0.32], sun:[1.0,0.74,0.44], sand:[0.46,0.46,0.44], shallow:[0.16,0.46,0.54], deep:[0.03,0.09,0.22] },
-  day:   { top:[0.14,0.44,0.70], horizon:[0.58,0.80,0.92], sun:[1.0,0.97,0.82], sand:[0.50,0.60,0.54], shallow:[0.13,0.58,0.64], deep:[0.02,0.13,0.30] },
-  dusk:  { top:[0.11,0.10,0.26], horizon:[0.92,0.42,0.30], sun:[1.0,0.57,0.37], sand:[0.42,0.36,0.40], shallow:[0.18,0.38,0.50], deep:[0.03,0.07,0.19] },
-  night: { top:[0.01,0.04,0.11], horizon:[0.05,0.11,0.23], sun:[0.78,0.86,1.0], sand:[0.07,0.13,0.20], shallow:[0.04,0.18,0.32], deep:[0.01,0.04,0.11] },
-};
-const lerp3 = (a:V3,b:V3,k:number):V3 => [a[0]+(b[0]-a[0])*k, a[1]+(b[1]-a[1])*k, a[2]+(b[2]-a[2])*k];
-const toMin = (s?:string) => s ? +s.slice(0,2)*60 + +s.slice(3,5) : null;
+/* ═══ Wasserwelt 3.0 · Fotorealer Live-Hintergrund ═══
+ * Zwei animierte Sektionen: oben tageszeit-live-animierter Himmel (Sonnen-/Mondbogen aus echten
+ * Sonnenauf-/untergangszeiten), unten echtes Wasser-Video-Loop (Tag/Nacht), weicher Horizont-Blend,
+ * dazu animiertes Boot + Vögel (Vorlagen-Stil). Leichtgewichtig: CSS-Animationen + 1×/min
+ * Sonnenstand-Update, KEIN WebGL, kein rAF-Dauerloop. Faded weich ein, pausiert Videos im Hintergrund. */
+const HORIZON = 52;
+function srss(){ const w:any=(window as any).__wlw; const toM=(s?:string)=> s?(+s.slice(0,2))*60+(+s.slice(3,5)):null; return { sr: toM(w?.sunrise) ?? 330, ss: toM(w?.sunset) ?? 1290 }; }
+const SKY:Record<string,string> = {
+  dawn:'linear-gradient(180deg,#1a2f5c 0%,#3f4f86 30%,#e8915a 78%,#ffd6a0 100%)',
+  day:'linear-gradient(180deg,#2f6fb0 0%,#67a6d8 45%,#bfe0ef 84%,#e8f4fb 100%)',
+  dusk:'linear-gradient(180deg,#241a47 0%,#5b3f74 32%,#e0613a 80%,#ffb06a 100%)',
+  night:'linear-gradient(180deg,#02040e 0%,#061026 45%,#0b1c3a 82%,#12233f 100%)'};
+const WGRADE:Record<string,string> = { dawn:'linear-gradient(180deg,rgba(255,180,110,.40),rgba(20,60,90,.15))',day:'linear-gradient(180deg,rgba(150,200,235,.30),rgba(10,50,80,.10))',dusk:'linear-gradient(180deg,rgba(255,140,80,.42),rgba(20,30,70,.20))',night:'linear-gradient(180deg,rgba(8,18,44,.62),rgba(2,8,20,.55))'};
+const HAZE:Record<string,string> = { dawn:'rgba(255,190,120,.55)',day:'rgba(200,228,245,.45)',dusk:'rgba(255,150,90,.55)',night:'rgba(90,120,180,.30)'};
+const SILH:Record<string,string> = { dawn:'#173049',day:'#15314a',dusk:'#241a3a',night:'#9fb4cc'};
+function phase(m:number,sr:number,ss:number){ if(m>=sr-45&&m<=sr+45)return'dawn'; if(m>=ss-45&&m<=ss+45)return'dusk'; if(m>sr+45&&m<ss-45)return'day'; return'night'; }
 
-/* Kontinuierlicher Sonnen-/Mondstand aus echten Auf-/Untergangszeiten:
- * gibt Höhe (-1..1, >0 = über Horizont) und Azimut (-1 Ost … +1 West). */
-function celestial(): { elev:number; az:number; moon:boolean } {
-  const w:any = (window as any).__wlw;
-  const now = new Date(); const mins = now.getHours()*60 + now.getMinutes();
-  const sr = toMin(w?.sunrise) ?? 5*60, su = toMin(w?.sunset) ?? 21*60+30;
-  if (mins >= sr && mins <= su) {                       // Tag → Sonne
-    const f = (mins - sr) / Math.max(su - sr, 1);        // 0..1
-    return { elev: Math.sin(f*Math.PI), az: f*2-1, moon:false };
+const CSS = `
+#water3d #wl-sky{position:absolute;left:0;right:0;top:0;height:56%;transition:background 1.6s ease;will-change:background}
+#water3d .wl-cloud{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 1.6s ease;background-repeat:no-repeat;will-change:transform}
+#water3d #wl-cloudA{background:radial-gradient(440px 56px at 22% 36%,rgba(255,255,255,.18),transparent 70%),radial-gradient(520px 64px at 64% 24%,rgba(255,255,255,.13),transparent 70%);animation:wlDriftA 90s linear infinite}
+#water3d #wl-cloudB{background:radial-gradient(360px 44px at 42% 48%,rgba(255,255,255,.12),transparent 70%),radial-gradient(300px 40px at 84% 40%,rgba(255,255,255,.10),transparent 72%);animation:wlDriftB 140s linear infinite}
+@keyframes wlDriftA{0%{transform:translateX(-6%)}100%{transform:translateX(106%)}}
+@keyframes wlDriftB{0%{transform:translateX(110%)}100%{transform:translateX(-10%)}}
+#water3d #wl-stars{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 1.6s ease;background-image:radial-gradient(1.5px 1.5px at 12% 22%,#fff,transparent),radial-gradient(1.2px 1.2px at 26% 38%,#fff,transparent),radial-gradient(1.6px 1.6px at 44% 16%,#fff,transparent),radial-gradient(1.1px 1.1px at 60% 30%,#dfe9ff,transparent),radial-gradient(1.5px 1.5px at 76% 14%,#fff,transparent),radial-gradient(1.2px 1.2px at 88% 34%,#fff,transparent),radial-gradient(1px 1px at 34% 9%,#fff,transparent),radial-gradient(1.3px 1.3px at 69% 7%,#fff,transparent),radial-gradient(1px 1px at 52% 44%,#fff,transparent),radial-gradient(1.1px 1.1px at 16% 52%,#fff,transparent),radial-gradient(1.2px 1.2px at 7% 12%,#fff,transparent),radial-gradient(1px 1px at 92% 20%,#fff,transparent);animation:wlTwinkle 4.5s ease-in-out infinite alternate}
+@keyframes wlTwinkle{from{opacity:.5}to{opacity:1}}
+#water3d #wl-shoot{position:absolute;top:14%;left:-8%;width:120px;height:1.6px;border-radius:2px;opacity:0;pointer-events:none;background:linear-gradient(90deg,transparent,#fff);transform:rotate(16deg)}
+#water3d #wl-sun{position:absolute;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);filter:blur(1px);z-index:3;transition:opacity 1.2s ease,background 1.2s ease}
+#water3d #wl-rays{position:absolute;width:520px;height:520px;pointer-events:none;transform:translate(-50%,-50%);z-index:2;mix-blend-mode:screen;transition:opacity 1.4s ease;opacity:0;animation:wlSpin 90s linear infinite;background:conic-gradient(from 0deg,transparent 0deg,rgba(255,240,200,.16) 8deg,transparent 16deg,transparent 34deg,rgba(255,240,200,.12) 40deg,transparent 48deg,transparent 80deg,rgba(255,240,200,.15) 86deg,transparent 94deg,transparent 140deg,rgba(255,240,200,.11) 146deg,transparent 154deg,transparent 210deg,rgba(255,240,200,.14) 216deg,transparent 224deg,transparent 290deg,rgba(255,240,200,.11) 296deg,transparent 304deg,transparent 360deg);-webkit-mask-image:radial-gradient(circle,#000 0%,transparent 62%);mask-image:radial-gradient(circle,#000 0%,transparent 62%)}
+@keyframes wlSpin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+#water3d .wl-bird{position:absolute;z-index:3;pointer-events:none;will-change:transform}
+#water3d .wl-bird svg{display:block;overflow:visible}
+#water3d .wl-wing{fill:none;stroke:var(--wl-silh,#15314a);stroke-width:2.4;stroke-linecap:round;transform-origin:center;animation:wlFlap 1.1s ease-in-out infinite;transition:stroke 1.2s ease}
+#water3d #wl-b1{animation:wlGlide1 46s linear infinite}#water3d #wl-b2{animation:wlGlide2 60s linear infinite}#water3d #wl-b3{animation:wlGlide3 53s linear infinite}
+#water3d #wl-b2 .wl-wing{animation-duration:1.35s}#water3d #wl-b3 .wl-wing{animation-duration:.95s}
+@keyframes wlFlap{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.42)}}
+@keyframes wlGlide1{0%{transform:translate(-12vw,20vh) scale(.9)}100%{transform:translate(112vw,9vh) scale(.9)}}
+@keyframes wlGlide2{0%{transform:translate(114vw,13vh) scale(.62)}100%{transform:translate(-14vw,24vh) scale(.62)}}
+@keyframes wlGlide3{0%{transform:translate(-14vw,30vh) scale(1.05)}100%{transform:translate(116vw,17vh) scale(1.05)}}
+#water3d #wl-haze{position:absolute;left:0;right:0;top:52%;height:11%;transform:translateY(-50%);pointer-events:none;z-index:2;transition:background 1.6s ease;mix-blend-mode:screen;filter:blur(3px)}
+#water3d #wl-boat{position:absolute;left:50%;top:52%;z-index:3;pointer-events:none;width:96px;transform:translate(-50%,-78%);animation:wlBoatDrift 120s ease-in-out infinite}
+#water3d #wl-boat .wl-bobber{animation:wlBob 4.6s ease-in-out infinite;transform-origin:center bottom}
+#water3d #wl-boat path,#water3d #wl-boat line{fill:var(--wl-silh,#15314a);stroke:var(--wl-silh,#15314a);transition:fill 1.2s ease,stroke 1.2s ease}
+#water3d #wl-boat .wl-wake{fill:none;stroke:var(--wl-silh,#15314a);stroke-width:1.6;stroke-linecap:round;opacity:.5}
+@keyframes wlBob{0%,100%{transform:translateY(0) rotate(-.6deg)}50%{transform:translateY(-3px) rotate(.6deg)}}
+@keyframes wlBoatDrift{0%{left:34%}50%{left:64%}100%{left:34%}}
+#water3d #wl-waterwrap{position:absolute;left:0;right:0;top:48%;bottom:0;overflow:hidden;z-index:1;-webkit-mask-image:linear-gradient(to bottom,transparent 0%,#000 17%,#000 100%);mask-image:linear-gradient(to bottom,transparent 0%,#000 17%,#000 100%)}
+#water3d .wl-vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity 1.4s ease,filter 1.6s ease;will-change:opacity}
+#water3d #wl-wgrade{position:absolute;inset:0;pointer-events:none;transition:background 1.6s ease;mix-blend-mode:soft-light}
+#water3d #wl-glint{position:absolute;top:0;width:120px;height:100%;pointer-events:none;transform:translateX(-50%);mix-blend-mode:screen;filter:blur(7px);transition:opacity 1.2s ease,background 1.2s ease}
+#water3d #wl-vign{position:absolute;inset:0;pointer-events:none;z-index:4;background:radial-gradient(125% 95% at 50% 42%,transparent 60%,rgba(2,10,18,.45) 100%)}
+.hero-sky,.hero-stars,.hero-waves{display:none!important}
+@media (prefers-reduced-motion:reduce){#water3d *{animation:none!important}}
+`;
+const DOM = `
+<div id="wl-sky"><div id="wl-cloudA" class="wl-cloud"></div><div id="wl-cloudB" class="wl-cloud"></div><div id="wl-stars"></div><div id="wl-shoot"></div></div>
+<div id="wl-rays"></div><div id="wl-sun"></div>
+<div id="wl-b1" class="wl-bird"><svg width="34" height="14" viewBox="0 0 34 14"><path class="wl-wing" d="M1 11 Q9 1 17 8 Q25 1 33 11"/></svg></div>
+<div id="wl-b2" class="wl-bird"><svg width="34" height="14" viewBox="0 0 34 14"><path class="wl-wing" d="M1 11 Q9 1 17 8 Q25 1 33 11"/></svg></div>
+<div id="wl-b3" class="wl-bird"><svg width="34" height="14" viewBox="0 0 34 14"><path class="wl-wing" d="M1 11 Q9 1 17 8 Q25 1 33 11"/></svg></div>
+<div id="wl-haze"></div>
+<div id="wl-boat"><svg viewBox="0 0 120 46" width="100%"><g class="wl-bobber"><path class="wl-wake" d="M2 41 q14 -3 26 0 q10 2 16 -1"/><path d="M44 33 L108 33 L99 41 L52 41 Z"/><path d="M62 33 L66 25 L90 25 L94 33 Z"/><path d="M58 22 L98 22 L98 25 L58 25 Z"/><line x1="64" y1="22" x2="66" y2="25" stroke-width="2"/><line x1="92" y1="22" x2="90" y2="25" stroke-width="2"/></g></svg></div>
+<div id="wl-waterwrap"><video id="wl-vday" class="wl-vid" autoplay loop muted playsinline preload="auto" src="/water_day.mp4"></video><video id="wl-vnight" class="wl-vid" autoplay loop muted playsinline preload="auto" src="/water_night.mp4" style="opacity:0"></video><div id="wl-glint"></div><div id="wl-wgrade"></div></div>
+<div id="wl-vign"></div>`;
+
+export function initWater3D(){
+  if (document.getElementById('water3d')) return;
+  const st = document.createElement('style'); st.id='wl-bg-css'; st.textContent=CSS; document.head.appendChild(st);
+  const host = document.createElement('div'); host.id='water3d'; host.innerHTML=DOM; document.body.prepend(host);
+  const q = (s:string)=> host.querySelector(s) as HTMLElement;
+  const sky=q('#wl-sky'), sun=q('#wl-sun'), rays=q('#wl-rays'), haze=q('#wl-haze'), cloudA=q('#wl-cloudA'), cloudB=q('#wl-cloudB'),
+        stars=q('#wl-stars'), shoot=q('#wl-shoot'), glint=q('#wl-glint'), wgrade=q('#wl-wgrade');
+  const vDay=q('#wl-vday') as HTMLVideoElement, vNight=q('#wl-vnight') as HTMLVideoElement;
+  let shootOn=false;
+  function scheduleShoot(){ if(!shootOn) return; try{ shoot.animate([{transform:'rotate(16deg) translateX(0)',opacity:0},{opacity:1,offset:.1},{transform:'rotate(16deg) translateX(70vw)',opacity:0}],{duration:1300,easing:'ease-in'}); }catch(e){} setTimeout(scheduleShoot, 9000+Math.random()*9000); }
+  function render(){
+    const {sr,ss}=srss(); const now=new Date(); const m=now.getHours()*60+now.getMinutes();
+    const p=phase(m,sr,ss), night=p==='night';
+    sky.style.background=SKY[p]; cloudA.style.opacity=night?'0':'0.85'; cloudB.style.opacity=night?'0':'0.7';
+    stars.style.opacity=night?'0.95':'0'; vNight.style.opacity=night?'1':'0'; vDay.style.opacity=night?'0':'1';
+    wgrade.style.background=WGRADE[p]; host.style.setProperty('--wl-silh',SILH[p]);
+    let isMoon:boolean, f:number;
+    if(m>=sr&&m<=ss){ isMoon=false; f=(m-sr)/Math.max(ss-sr,1); }
+    else { isMoon=true; const nl=(1440-ss)+sr, mm=m>ss?m-ss:m+(1440-ss); f=mm/Math.max(nl,1); }
+    const elev=Math.sin(f*Math.PI), x=6+f*88, y=HORIZON-elev*(HORIZON-8);
+    sun.style.left=x+'%'; sun.style.top=y+'%'; rays.style.left=x+'%'; rays.style.top=y+'%';
+    const dia=120+elev*70; sun.style.width=sun.style.height=(isMoon?120:dia)+'px';
+    glint.style.left=x+'%'; haze.style.background='radial-gradient(60% 100% at '+x+'% 50%,'+HAZE[p]+',transparent 70%)';
+    if(isMoon){ sun.style.background='radial-gradient(circle,rgba(238,245,255,.98),rgba(205,222,255,.45) 30%,rgba(180,205,255,0) 70%)'; sun.style.opacity='0.92'; rays.style.opacity='0'; glint.style.background='linear-gradient(180deg,rgba(220,232,255,.45),rgba(180,205,255,0))'; glint.style.opacity='0.45'; }
+    else { const warm=p==='day'?'255,247,220':'255,193,120'; sun.style.background='radial-gradient(circle,rgba('+warm+',1),rgba('+warm+',.5) 28%,rgba('+warm+',0) 70%)'; sun.style.opacity=String(Math.max(.4,elev)); rays.style.opacity=String(Math.max(0,elev*(p==='day'?.5:.65))); glint.style.background='linear-gradient(180deg,rgba('+warm+',.7),rgba('+warm+',0))'; glint.style.opacity=String(Math.max(.25,elev*.85)); }
+    if(night){ if(!shootOn){ shootOn=true; scheduleShoot(); } } else shootOn=false;
   }
-  // Nacht → Mond (gespiegelter Bogen über die Nachtstunden)
-  const nightLen = (24*60 - su) + sr;
-  const m = mins > su ? mins - su : mins + (24*60 - su);
-  const f = m / Math.max(nightLen, 1);
-  return { elev: Math.sin(f*Math.PI)*0.8, az: f*2-1, moon:true };
-}
-
-export async function initWater3D() {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const THREE = await import('three');
-  const host = document.createElement('div'); host.id = 'water3d';
-  document.body.prepend(host);
-  const renderer = new THREE.WebGLRenderer({ antialias:false, alpha:true, powerPreference:'low-power' });
-  renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio, 1.6));
-  host.appendChild(renderer.domElement);
-  const scene = new THREE.Scene();
-  const cam = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 220);
-  cam.position.set(0, 3.0, 9.5); cam.lookAt(0, 0.9, -20);
-
-  /* ── Himmel ── */
-  const skyU = { top:{value:new THREE.Color()}, horizon:{value:new THREE.Color()},
-    sun:{value:new THREE.Color()}, sunX:{value:0.0}, sunY:{value:0.4}, haze:{value:0.0}, moon:{value:0.0}, t:{value:0.0} };
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(140, 32, 16),
-    new THREE.ShaderMaterial({ side:THREE.BackSide, depthWrite:false, uniforms:skyU,
-      vertexShader:`varying vec3 vd; void main(){ vd=normalize(position); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-      fragmentShader:`uniform vec3 top,horizon,sun; uniform float sunX,sunY,haze,moon,t; varying vec3 vd;
-        void main(){ vec3 n=normalize(vd); float y=clamp(n.y*0.5+0.5,0.0,1.0);
-          vec3 col=mix(horizon, top, smoothstep(0.46,0.94,y));
-          vec3 sd=normalize(vec3(sunX*0.9, max(sunY,0.005), -1.0));
-          float d=max(dot(n, sd),0.0);
-          float disk = moon>0.5 ? pow(d,900.0)*0.85 : pow(d,300.0)*1.05;
-          col += sun*disk;                                  /* Scheibe */
-          col += sun*pow(d,7.0)*(moon>0.5?0.10:0.32);       /* weicher Hof */
-          /* strahlender Sonnenschein: langsam rotierende Strahlen */
-          float ang = atan(n.x - sd.x, n.y - sd.y);
-          float rays = pow(d, 16.0) * (0.55 + 0.45*sin(ang*18.0 + t*0.5));
-          col += sun * rays * (moon>0.5?0.05:0.16);
-          col = mix(col, horizon, haze*0.55);
-          gl_FragColor=vec4(col,1.0); }`,
-    }));
-  scene.add(sky);
-
-  /* ── Wasser: Tiefenverlauf + Kaustik + Fresnel + Glitzerpfad ── */
-  const geo = new THREE.PlaneGeometry(300, 220, 150, 100);
-  const watU = { t:{value:0}, storm:{value:0}, sunX:{value:0.0}, sunElev:{value:0.5}, moon:{value:0.0},
-    sand:{value:new THREE.Color()}, shallow:{value:new THREE.Color()}, deep:{value:new THREE.Color()},
-    skyTop:{value:new THREE.Color()}, skyHor:{value:new THREE.Color()}, sun:{value:new THREE.Color()} };
-  const mat = new THREE.ShaderMaterial({ transparent:true, uniforms:watU,
-    vertexShader:`uniform float t,storm; varying float h; varying vec3 wp; varying float depth;
-      void main(){ vec3 p=position;
-        float amp=1.0+storm*1.7;
-        /* Dünungs-Wellen rollen AUF DEN BETRACHTER ZU (Phase entlang p.y, läuft mit -t nach vorn).
-           Kammlinien ~parallel zum Ufer, leicht versetzt — kein gleichfrequentes Gitter. */
-        float w =  sin(p.y*0.150 - t*1.05 + sin(p.x*0.03)*0.6) * 0.46
-                 + sin(p.y*0.305 - t*1.55 + sin(p.x*0.05)*0.5) * 0.22
-                 + sin(p.y*0.560 - t*2.05 + p.x*0.045)        * 0.10
-                 + sin(p.x*0.060 - p.y*0.02 - t*0.50)         * 0.13;   /* sanfte Quer-Dünung */
-        w *= amp;
-        depth = clamp(-p.y/100.0, 0.0, 1.0);              /* 0 = nah/flach … 1 = fern/tief */
-        w *= mix(0.5, 1.0, depth);
-        p.z += w; h=w; wp=p;
-        gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0); }`,
-    fragmentShader:`uniform float t,storm,sunX,sunElev,moon;
-      uniform vec3 sand,shallow,deep,skyTop,skyHor,sun; varying float h; varying vec3 wp; varying float depth;
-      void main(){
-        /* Tiefen-Farbe: Türkis (flach/nah) → Tiefblau (fern) */
-        vec3 base = mix(shallow, deep, smoothstep(0.03, 0.70, depth));
-        /* feiner Sandschimmer NUR im unmittelbaren Vordergrund */
-        float nearMask = 1.0 - smoothstep(0.0, 0.13, depth);
-        base = mix(base, sand, nearMask*0.16);
-        /* organische Schaumkronen aus Wellenhöhe — KEIN Gitter */
-        float foam = smoothstep(0.42, 0.95, h);
-        base += vec3(0.72,0.93,0.96) * foam * 0.13 * (1.0 - storm*0.3);
-        /* Fresnel dezent — Wasser behält seine Farbe */
-        float fres = pow(depth, 1.7);
-        vec3 refl = mix(skyHor, skyTop, depth*0.4);
-        vec3 c = mix(base, refl, fres*0.30*(1.0-storm*0.4));
-        /* Glitzerpfad zum Sonnen-/Mondstand (Azimut = sunX) */
-        float path = exp(-abs(wp.x - sunX*70.0)*0.045) * smoothstep(-100.0, -4.0, wp.y);
-        float spark = pow(max(h,0.0), 2.3) * (0.5+0.5*sin(wp.x*2.6 + t*3.1));
-        float si = clamp(sunElev,0.0,1.0) * (moon>0.5?0.45:1.0);
-        c += sun * (path*0.10 + path*spark*0.45) * si * (1.0-storm*0.6);
-        gl_FragColor=vec4(c, 0.97); }`,
-  });
-  const water = new THREE.Mesh(geo, mat);
-  water.rotation.x = -Math.PI/2; water.position.y = -0.6; scene.add(water);
-
-  /* ── Schiff am Horizont (schlanke Motoryacht-Silhouette, zieht langsam vorbei) ── */
-  const ship = new THREE.Group();
-  const shipMat = new THREE.MeshBasicMaterial({ color:0x14252f, transparent:true, opacity:0.85 });
-  /* langer, niedriger Rumpf mit spitzem Bug (rechts) — kein hoher Block */
-  const hull = new THREE.Shape();
-  hull.moveTo(-4.8,0.18); hull.lineTo(-4.6,1.02); hull.lineTo(3.4,1.02);
-  hull.lineTo(6.4,0.74); hull.lineTo(3.2,0.10); hull.closePath();
-  ship.add(new THREE.Mesh(new THREE.ShapeGeometry(hull), shipMat));
-  /* flache, schräge Kabine vorn — niedrige Aufbauten */
-  const cab = new THREE.Shape();
-  cab.moveTo(-2.6,1.02); cab.lineTo(-2.0,1.74); cab.lineTo(1.7,1.74); cab.lineTo(2.7,1.02); cab.closePath();
-  ship.add(new THREE.Mesh(new THREE.ShapeGeometry(cab), shipMat));
-  /* kurze Antenne */
-  const mast = new THREE.Mesh(new THREE.PlaneGeometry(0.07,1.2), shipMat); mast.position.set(2.1,2.3,0.01); ship.add(mast);
-  ship.position.set(-26, -0.05, -92); ship.scale.setScalar(0.9); scene.add(ship);
-
-  /* ── Vögel (V-Silhouetten, flattern & gleiten) ── */
-  const birds: any[] = [];
-  for (let i=0;i<5;i++){
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9),3));
-    const ln = new THREE.Line(g, new THREE.LineBasicMaterial({ color:0x223240, transparent:true, opacity:0 }));
-    ln.userData = { x:-34+Math.random()*68, y:13+Math.random()*12, z:-50-Math.random()*38, sp:0.5+Math.random()*0.6, fl:5+Math.random()*4, ph:Math.random()*7, sc:0.8+Math.random()*0.9 };
-    scene.add(ln); birds.push(ln);
-  }
-
-  /* ── Sterne (nur nachts) ── */
-  const sn = 240, spos = new Float32Array(sn*3);
-  for (let i=0;i<sn;i++){ const r=125, th=Math.random()*Math.PI*2, ph=Math.random()*0.5;
-    spos[i*3]=r*Math.cos(ph)*Math.cos(th); spos[i*3+1]=r*Math.sin(ph)+10; spos[i*3+2]=-Math.abs(r*Math.cos(ph)*Math.sin(th))-12; }
-  const sgeo = new THREE.BufferGeometry(); sgeo.setAttribute('position', new THREE.BufferAttribute(spos,3));
-  const starMat = new THREE.PointsMaterial({ color:0xeaf4ff, size:0.4, transparent:true, opacity:0 });
-  scene.add(new THREE.Points(sgeo, starMat));
-
-  /* ── State + weiche Überblendung ── */
-  let px=0, storm=0, snowing=0, sunX=0, sunY=0.4, sunElev=0.6, moon=0;
-  const cur:Phase = JSON.parse(JSON.stringify(PHASES.day));
-  const tgt = () => PHASES[(document.documentElement.dataset.tod||'day') as keyof typeof PHASES] || PHASES.day;
-  addEventListener('pointermove', e => { px = e.clientX/innerWidth - 0.5; }, { passive:true });
-  addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); cam.aspect=innerWidth/innerHeight; cam.updateProjectionMatrix(); }, { passive:true });
-
-  const clock = new THREE.Clock(); let frame=0;
-  (function loop(){
-    requestAnimationFrame(loop);
-    if (document.hidden) return;
-    const t = clock.getElapsedTime();
-    const wx = document.body.dataset.wx || 'clear';
-    const stT = wx==='storm'?1 : wx==='rain'?0.55 : (wx==='cloudy'||wx==='fog')?0.25 : 0;
-    storm += (stT - storm)*0.012; snowing += ((wx==='snow'?1:0)-snowing)*0.02;
-    /* Himmels-/Wasserfarben weich überblenden */
-    const tp = tgt(), k = 0.012;
-    cur.top=lerp3(cur.top,tp.top,k); cur.horizon=lerp3(cur.horizon,tp.horizon,k); cur.sun=lerp3(cur.sun,tp.sun,k);
-    cur.sand=lerp3(cur.sand,tp.sand,k); cur.shallow=lerp3(cur.shallow,tp.shallow,k); cur.deep=lerp3(cur.deep,tp.deep,k);
-    /* echten Sonnen-/Mondstand nur ~1×/s neu rechnen */
-    if (frame++ % 60 === 0) { const c = celestial(); sunX += (c.az - sunX)*1; sunElev += (Math.max(c.elev,0) - sunElev)*1; moon += ((c.moon?1:0)-moon)*1; }
-    sunY += (Math.max(sunElev*0.55+0.04, 0.02) - sunY)*0.05;
-    skyU.top.value.setRGB(...cur.top); skyU.horizon.value.setRGB(...cur.horizon); skyU.sun.value.setRGB(...cur.sun);
-    skyU.sunX.value=sunX; skyU.sunY.value=sunY; skyU.haze.value=Math.max(storm, snowing*0.6); skyU.moon.value=moon;
-    watU.t.value=t; watU.storm.value=storm; watU.sunX.value=sunX; watU.sunElev.value=sunElev; watU.moon.value=moon;
-    watU.sand.value.setRGB(...cur.sand); watU.shallow.value.setRGB(...cur.shallow); watU.deep.value.setRGB(...cur.deep);
-    watU.skyTop.value.setRGB(...cur.top); watU.skyHor.value.setRGB(...cur.horizon); watU.sun.value.setRGB(...cur.sun);
-    skyU.t.value = t;
-    const night = document.documentElement.dataset.tod === 'night';
-    const dayl = night ? 0.0 : 1.0;
-    /* Sterne funkeln (nur nachts) */
-    starMat.opacity += ((night ? 0.9*(0.78+0.22*Math.sin(t*2.5)) : 0) - starMat.opacity)*0.04;
-    /* Schiff am Horizont: langsam ziehen + leicht schaukeln */
-    ship.position.x += 0.018 + storm*0.012; if (ship.position.x > 34) ship.position.x = -34;
-    ship.position.y = -0.05 + Math.sin(t*0.5)*(0.09+storm*0.18);
-    ship.rotation.z = Math.sin(t*0.5)*0.02;
-    (shipMat as any).opacity += ((0.5 + 0.35*dayl) - (shipMat as any).opacity)*0.02;
-    /* Vögel: Flügelschlag + Gleiten */
-    for (const b of birds){ const u=b.userData; u.x += u.sp*0.03; if (u.x>40) u.x=-40;
-      const flap = Math.sin(t*u.fl + u.ph)*0.9*u.sc;
-      const pos = b.geometry.attributes.position.array as Float32Array;
-      pos[0]=-1.1*u.sc; pos[1]=flap; pos[3]=0; pos[4]=0.20*u.sc; pos[6]=1.1*u.sc; pos[7]=flap;
-      b.geometry.attributes.position.needsUpdate = true;
-      b.position.set(u.x, u.y + Math.sin(t*0.3+u.ph)*0.6, u.z);
-      (b.material as any).opacity += ((0.42*dayl) - (b.material as any).opacity)*0.02;
-    }
-    /* dezentes Bootsschaukeln */
-    cam.position.x += (px*1.4 - cam.position.x)*0.03;
-    cam.position.y = 3.0 + Math.sin(t*0.4)*(0.06+storm*0.10);
-    cam.rotation.z = Math.sin(t*0.3)*(0.003+storm*0.006);
-    renderer.render(scene, cam);
-  })();
+  render(); setInterval(render, 60000);
+  document.addEventListener('visibilitychange', ()=>{ const h=document.hidden; [vDay,vNight].forEach(v=>{ try{ h? v.pause(): v.play().catch(()=>{}); }catch(e){} }); });
+  requestAnimationFrame(()=> requestAnimationFrame(()=> host.classList.add('ready')));
 }

@@ -192,7 +192,7 @@ export function initNele(state: NeleState) {
 
   let greeted = false;
   const open = () => {
-    panel.hidden = false; root.classList.add('is-open');
+    panel.hidden = false; panel.style.removeProperty('display'); root.classList.add('is-open');
     if (!greeted) { greeted = true;
       say('Moin! 👋 Ich bin <b>Nele</b>, deine Lotsin fürs Revier — jetzt <b>deutschlandweit</b> an Bord. Sag mir, was du vorhast: ob du heute rausfahren kannst, wo\'s eng wird, wo du tankst, anlegst, isst oder die schönste Wasser-Route findest. ⚓');
       { const _m = currentMode(); say(`Dein Modus: <b>${_m.label}</b> — ich achte für dich vor allem auf ${_m.focus}.`); }
@@ -202,7 +202,7 @@ export function initNele(state: NeleState) {
     }
     setTimeout(() => input.focus(), 200);
   };
-  const close = () => { panel.hidden = true; root.classList.remove('is-open'); if ('speechSynthesis' in window) window.speechSynthesis.cancel(); };
+  const close = () => { panel.hidden = true; panel.style.setProperty('display', 'none', 'important'); root.classList.remove('is-open'); if ('speechSynthesis' in window) window.speechSynthesis.cancel(); };
   fab.onclick = () => { if (panel.hidden) open(); else close(); };
   $('#neleClose').onclick = close;
   $('#neleVoice').onclick = () => {
