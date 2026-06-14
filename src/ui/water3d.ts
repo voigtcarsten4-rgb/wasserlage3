@@ -53,6 +53,8 @@ const CSS = `
 #water3d #wl-glint{position:absolute;top:0;width:120px;height:100%;pointer-events:none;transform:translateX(-50%);mix-blend-mode:screen;filter:blur(7px);transition:opacity 1.2s ease,background 1.2s ease}
 #water3d #wl-vign{position:absolute;inset:0;pointer-events:none;z-index:4;background:radial-gradient(125% 96% at 50% 42%,transparent 56%,rgba(2,10,18,.52) 100%)}
 .hero-sky,.hero-stars,.hero-waves{display:none!important}
+#wl-scrim{position:fixed;inset:0;z-index:0;pointer-events:none;background:#06121f;opacity:.12;transition:opacity .25s linear}
+.sect>h2,.sect>p,.sect>.lead,.sect>.sub,.hero h1,.hero h2,.hero p,.hero .sub,#ziel>h2{text-shadow:0 1px 11px rgba(3,14,26,.62)}
 @media (prefers-reduced-motion:reduce){#water3d *{animation:none!important}}
 `;
 const BIRD = '<svg width="34" height="14" viewBox="0 0 34 14"><path class="wl-wing" d="M1 11 Q9 1 17 8 Q25 1 33 11"/></svg>';
@@ -102,4 +104,7 @@ export function initWater3D(){
   render(); setInterval(render, 60000);
   document.addEventListener('visibilitychange', ()=>{ const h=document.hidden; [vDay,vNight].forEach(v=>{ try{ h? v.pause(): v.play().catch(()=>{}); }catch(e){} }); });
   requestAnimationFrame(()=> requestAnimationFrame(()=> host.classList.add('ready')));
+  const scrim=document.createElement('div'); scrim.id='wl-scrim'; document.body.appendChild(scrim);
+  let _st=false; const sc=()=>{ _st=false; scrim.style.opacity=String(Math.min(.56, .12 + (window.scrollY/Math.max(innerHeight*0.7,1))*0.5)); };
+  addEventListener('scroll', ()=>{ if(!_st){ _st=true; requestAnimationFrame(sc); } }, {passive:true}); sc();
 }
