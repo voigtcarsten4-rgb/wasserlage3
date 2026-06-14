@@ -471,18 +471,20 @@ function startNav(source: NavSource) {
   const start = navPosAt(0);
   ensureBoat().setLngLat(start.pos).setRotation((start.brg + 360) % 360).addTo(API.map);
   API.map.flyTo({ center: start.pos, zoom: 14, pitch: 56, bearing: (start.brg + 360) % 360, duration: 900, essential: true } as any);
-  const notices: { html: string; say: string }[] = [];
+  /* ── M24: Hinweis-Arbitrierung — Sicherheit zuerst, max. 3 Startansagen (nie störend) ── */
+  const pri: { p: number; html: string; say: string }[] = [];
   const ew = elwisOnRoute(lastRoute);
-  if (ew.count > 0) notices.push({ html: `⚠️ <b>${ew.count} ELWIS-Hinweis${ew.count > 1 ? 'e' : ''}</b> auf der Route — aufmerksam fahren.`, say: `Achtung: ${ew.count} ELWIS Hinweis auf der Route.` });
+  if (ew.count > 0) pri.push({ p: 1, html: `⚠️ <b>${ew.count} ELWIS-Hinweis${ew.count > 1 ? 'e' : ''}</b> auf der Route — aufmerksam fahren.`, say: `Achtung: ${ew.count} ELWIS Hinweis auf der Route.` });
   const cw = communityOnRoute(lastRoute);
-  if (cw.danger > 0) notices.push({ html: `⚠️ <b>${cw.danger} Community-Gefahr${cw.danger > 1 ? 'en' : ''}</b> auf der Route — bitte aufmerksam fahren.`, say: `Achtung: ${cw.danger} Community Gefahr auf der Route.` });
-  const sun = sunsetWarn(lastRoute); if (sun) notices.push(sun);
+  if (cw.danger > 0) pri.push({ p: 1, html: `⚠️ <b>${cw.danger} Community-Gefahr${cw.danger > 1 ? 'en' : ''}</b> auf der Route — bitte aufmerksam fahren.`, say: `Achtung: ${cw.danger} Community Gefahr auf der Route.` });
   const _w = (window as any).__wlw;
   const _wa = _w ? windAdvice(currentMode().id, _w) : null;
-  if (_wa && _wa.lvl >= 1) notices.push({ html: _wa.html, say: _wa.say });   // aktuelle, boots-spezifische Wind-Lage zuerst
-  else { const wind = windFreshenNote(); if (wind) notices.push(wind); }      // sonst: Vorhersage „Wind frischt auf"
-  for (const h of proximityHints(lastRoute)) notices.push(h);                 // Event-/Revier-Naehe (M23)
-  showStartupNotices(notices);
+  if (_wa && _wa.lvl >= 1) pri.push({ p: _wa.lvl >= 2 ? 1 : 3, html: _wa.html, say: _wa.say });   // Einschränkung=Sicherheit, Hinweis=niedrig
+  else { const wind = windFreshenNote(); if (wind) pri.push({ p: 3, html: wind.html, say: wind.say }); }
+  for (const h of proximityHints(lastRoute)) pri.push(h);                     // Event (p2) / Revier (p4)
+  const sun = sunsetWarn(lastRoute); if (sun) pri.push({ p: 2, html: sun.html, say: sun.say });
+  pri.sort((a, b) => a.p - b.p);
+  showStartupNotices(pri.slice(0, 3).map(n => ({ html: n.html, say: n.say })));
   if (source === 'preview') {
     const durSec = Math.min(30, Math.max(12, navTotM / 220));
     navPlayMps = navTotM / durSec;
@@ -735,14 +737,14 @@ async function loadDE() {
 loadDE();
 function routeMinM(coord: LngLat, coords: LngLat[]): number { let best = Infinity; const step = Math.max(1, Math.floor(coords.length / 300)); for (let i = 0; i < coords.length; i += step) { const d = haversineM(coord, coords[i]); if (d < best) best = d; } return best; }
 function evtCopilotStatus(e: any): 'live' | 'soon' | null { if (!e.start) return null; const today = new Date(); today.setHours(0, 0, 0, 0); const s = new Date(e.start + 'T00:00'), en = new Date((e.end || e.start) + 'T23:59'); if (en < today) return null; if (s.getTime() <= today.getTime() + 86400000 && en.getTime() >= today.getTime()) return 'live'; return (s.getTime() - today.getTime()) / 86400000 <= 14 ? 'soon' : null; }
-function proximityHints(r: RouteResult): { html: string; say: string }[] {
-  const out: { html: string; say: string }[] = []; const co = r.coords; if (!co || co.length < 2) return out;
+function proximityHints(r: RouteResult): { p: number; html: string; say: string }[] {
+  const out: { p: number; html: string; say: string }[] = []; const co = r.coords; if (!co || co.length < 2) return out;
   let bE: any = null, bED = Infinity;
   for (const e of EVENTS_DE) { const st = evtCopilotStatus(e); if (!st) continue; const d = routeMinM(e.coord, co); if (d < 3500 && d < bED) { bED = d; bE = { e, st }; } }
-  if (bE) { const when = bE.st === 'live' ? 'aktuell' : 'demnächst'; out.push({ html: `📅 Auf deiner Route liegt ${when} <b>${E(bE.e.name)}</b>${bE.e.ort ? ` · ${E(bE.e.ort)}` : ''} — im Hafenbereich mehr Verkehr &amp; volle Stege einplanen.`, say: `Auf deiner Route liegt ${when} ${bE.e.name}. Im Hafenbereich mehr Verkehr.` }); }
+  if (bE) { const when = bE.st === 'live' ? 'aktuell' : 'demnächst'; out.push({ p: 2, html: `📅 Auf deiner Route liegt ${when} <b>${E(bE.e.name)}</b>${bE.e.ort ? ` · ${E(bE.e.ort)}` : ''} — im Hafenbereich mehr Verkehr &amp; volle Stege einplanen.`, say: `Auf deiner Route liegt ${when} ${bE.e.name}. Im Hafenbereich mehr Verkehr.` }); }
   let bR: any = null, bRD = Infinity;
   for (const t of TOUREN_DE) { const d = routeMinM(t.start_coord, co); if (d < 6000 && d < bRD) { bRD = d; bR = t; } }
-  if (bR) { const extra = bR.waypoints ? ` — ${bR.etappen || bR.waypoints.length} Etappen, ${bR.schleusen || 'einige'} Schleusen` : ''; out.push({ html: `🚤 Du fährst im Revier <b>${E(bR.name)}</b>${extra}.`, say: `Du fährst im Revier ${bR.name}.` }); }
+  if (bR) { const extra = bR.waypoints ? ` — ${bR.etappen || bR.waypoints.length} Etappen, ${bR.schleusen || 'einige'} Schleusen` : ''; out.push({ p: 4, html: `🚤 Du fährst im Revier <b>${E(bR.name)}</b>${extra}.`, say: `Du fährst im Revier ${bR.name}.` }); }
   return out.slice(0, 2);
 }
 function renderSummary(r: RouteResult | null) {
