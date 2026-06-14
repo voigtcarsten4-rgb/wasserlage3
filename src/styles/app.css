@@ -1206,3 +1206,9 @@ html[data-tod="night"] .ts-kick,html[data-tod="dusk"] .ts-kick{color:var(--cyan-
 .ts-facts{font-size:12px;color:var(--ink2)}
 .ts-why{font-size:12.5px;color:var(--ink)}
 @media(max-width:560px){.ts-grid{grid-template-columns:1fr}}
+
+/* ── Design 2.0 · ruhige Konsistenz der neuen Sektionen (Milestone 29) ── */
+.td-wrap{margin-top:clamp(20px,3vw,30px)}
+.td-head{padding-bottom:9px;border-bottom:1px solid rgba(127,150,170,.16);margin-bottom:4px}
+html[data-tod="night"] .td-head,html[data-tod="dusk"] .td-head{border-bottom-color:rgba(255,255,255,.08)}
+.td-card,.ed-card,.fav-card,.ts-card{box-shadow:0 2px 12px -7px rgba(10,37,64,.20)}
