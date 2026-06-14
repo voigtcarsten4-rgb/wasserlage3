@@ -761,17 +761,17 @@ html.is-offline .badge:not(.err){opacity:.5}
   padding: 1px 8px; border-radius: 999px; vertical-align: middle; white-space: nowrap;
   border: 1px solid transparent;
 }
-.pg-state.ok { color: #76e6b0; background: rgba(39,192,141,.14); border-color: rgba(39,192,141,.4); }
-.pg-state.lo { color: #f0c674; background: rgba(217,177,77,.16); border-color: rgba(217,177,77,.45); }
-.pg-state.hi { color: #ff9a8a; background: rgba(232,76,60,.16); border-color: rgba(232,76,60,.5); }
+.pg-state.ok { color: #0c6e49; background: rgba(64,200,150,.22); border-color: rgba(31,140,95,.5); }
+.pg-state.lo { color: #8a5e0c; background: rgba(230,190,90,.26); border-color: rgba(170,120,30,.5); }
+.pg-state.hi { color: #9e2f23; background: rgba(235,110,95,.22); border-color: rgba(190,70,55,.5); }
 .pg-head {
   font-size: .9rem; font-weight: 700; padding: 9px 12px; border-radius: 12px; margin-bottom: 10px;
   border: 1px solid var(--line, rgba(255,255,255,.12));
 }
 .pg-head small { font-weight: 500; opacity: .7; }
-.pg-head.ok { color: #aef0d0; background: rgba(39,192,141,.10); border-color: rgba(39,192,141,.3); }
-.pg-head.lo { color: #f3d28a; background: rgba(217,177,77,.10); border-color: rgba(217,177,77,.35); }
-.pg-head.hi { color: #ffb3a6; background: rgba(232,76,60,.12); border-color: rgba(232,76,60,.4); }
+.pg-head.ok { color: #0c6e49; background: rgba(64,200,150,.14); border-color: rgba(31,140,95,.35); }
+.pg-head.lo { color: #8a5e0c; background: rgba(230,190,90,.16); border-color: rgba(170,120,30,.4); }
+.pg-head.hi { color: #9e2f23; background: rgba(235,110,95,.16); border-color: rgba(190,70,55,.45); }
 
 /* === Tiefen-Check (F/T) „Passt mein Boot?" === */
 #tiefe-sect { scroll-margin-top: 80px; }

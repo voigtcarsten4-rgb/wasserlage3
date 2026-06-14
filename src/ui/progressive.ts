@@ -3,15 +3,15 @@
  * Transluzent → Foto-Hintergrund bleibt dezent sichtbar; dunkler Textbereich = Kontrast/Lesbarkeit.
  * Emil-Motion (Spring-Easing), GPU-only, reduced-motion-safe. Dashboard-Panels + Karte bleiben außen vor. */
 const SECS: [string, boolean][] = [
-  ['tiefe-sect', false], ['entdecken', false], ['sicherheit', false], ['touren', false],
+  ['entdecken', false], ['sicherheit', false], ['touren', false],
   ['community', false], ['partner', false], ['academy', false], ['wavebite', false], ['earlyaccess', true]
 ];
-const A={e:"M0,10 C13,3 27,3 40,11 C50,17 58,17 71,10 C83,3 93,5 100,9.5",r:"M0,21 C16,16 30,16 44,21 C58,26 72,26 100,20"};
-const B={e:"M0,9 C11,16 24,16 36,9.5 C47,3 58,3 70,10 C82,16 92,14 100,9",r:"M0,20 C14,25 28,25 42,20 C56,15 70,15 100,21"};
+const A={e:"M0,12 C13,8 27,8 40,13 C50,16 58,16 71,12 C83,8 93,9 100,12",r:"M0,19 C16,16 30,16 44,19 C58,22 72,22 100,18"};
+const B={e:"M0,11 C11,16 24,16 36,12 C47,8 58,8 70,12 C82,16 92,15 100,11",r:"M0,18 C14,22 28,22 42,18 C56,15 70,15 100,19"};
 const DEFS=`<svg id="wl-acc-defs" width="0" height="0" aria-hidden="true"><defs>
-<clipPath id="wlwA" clipPathUnits="objectBoundingBox"><path d="M0,0.26 C0.13,0.07 0.27,0.07 0.40,0.28 C0.50,0.43 0.58,0.43 0.71,0.27 C0.83,0.09 0.93,0.13 1,0.27 L1,1 L0,1 Z"/></clipPath>
-<clipPath id="wlwB" clipPathUnits="objectBoundingBox"><path d="M0,0.24 C0.11,0.42 0.24,0.42 0.36,0.26 C0.47,0.10 0.58,0.10 0.70,0.27 C0.82,0.43 0.92,0.40 1,0.26 L1,1 L0,1 Z"/></clipPath>
-<linearGradient id="wlcg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7fe8ed"/><stop offset=".6" stop-color="#3fc3c9"/><stop offset="1" stop-color="#e9c46a"/></linearGradient></defs></svg>`;
+<clipPath id="wlwA" clipPathUnits="objectBoundingBox"><path d="M0,0.30 C0.13,0.21 0.27,0.21 0.40,0.31 C0.50,0.38 0.58,0.38 0.71,0.30 C0.83,0.22 0.93,0.24 1,0.30 L1,1 L0,1 Z"/></clipPath>
+<clipPath id="wlwB" clipPathUnits="objectBoundingBox"><path d="M0,0.29 C0.11,0.38 0.24,0.38 0.36,0.30 C0.47,0.22 0.58,0.22 0.70,0.31 C0.82,0.38 0.92,0.36 1,0.29 L1,1 L0,1 Z"/></clipPath>
+<linearGradient id="wlcg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#bcd9dc"/><stop offset=".6" stop-color="#8fbabb"/><stop offset="1" stop-color="#d7bd92"/></linearGradient></defs></svg>`;
 const CSS=`
 .wl-acc-head{position:relative;cursor:pointer;user-select:none;font:800 clamp(17px,2.4vw,22px)/1.15 var(--font-h,inherit);letter-spacing:-.02em;
   padding:13px 52px 13px 22px!important;margin:10px 0!important;border-radius:16px;
@@ -21,8 +21,8 @@ const CSS=`
 .wl-acc-head>*{position:relative;z-index:1}
 .wl-crest{position:absolute;left:0;right:0;top:7px;height:30px;pointer-events:none;opacity:0;z-index:0;transition:opacity .35s ease;animation:wlDrift 11s ease-in-out infinite alternate}
 .wl-pB .wl-crest{animation-direction:alternate-reverse;animation-duration:13s}
-.wl-crest .wl-foam{fill:none;stroke:#eafbff;stroke-width:4.5;opacity:.3;filter:blur(2.5px)}
-.wl-crest .wl-edge{fill:none;stroke:url(#wlcg);stroke-width:1.7;filter:drop-shadow(0 0 4px rgba(120,230,235,.55))}
+.wl-crest .wl-foam{fill:none;stroke:#eafbff;stroke-width:3.5;opacity:.18;filter:blur(2.5px)}
+.wl-crest .wl-edge{fill:none;stroke:url(#wlcg);stroke-width:1.2;filter:drop-shadow(0 0 2px rgba(140,200,205,.3))}
 .wl-crest .wl-rip{fill:none;stroke:rgba(180,230,240,.32);stroke-width:1}
 @keyframes wlDrift{0%{transform:translateX(0)}100%{transform:translateX(-4%)}}
 .wl-acc-head:hover{transform:translateY(-2px);box-shadow:0 12px 28px -14px rgba(0,22,44,.7)}
@@ -31,13 +31,13 @@ const CSS=`
 .wl-acc-head::after{content:'';position:absolute;right:18px;top:calc(50% - 6px);width:11px;height:11px;border-right:2.5px solid #6fe0e6;border-bottom:2.5px solid #6fe0e6;transform:rotate(45deg);transition:transform .4s cubic-bezier(.34,1.4,.5,1);opacity:.9;z-index:1}
 section.wl-collapsed{margin:0!important;padding:0!important;border:0!important;background:transparent!important}
 section.wl-collapsed>.wl-acc-head{-webkit-clip-path:url(#wlwA);clip-path:url(#wlwA);border-radius:0;border:none;
-  margin:-14px 0 0!important;padding:40px 52px 17px 22px!important;min-height:88px;
+  margin:-8px 0 0!important;padding:30px 52px 15px 22px!important;min-height:66px;
   background:linear-gradient(180deg,rgba(66,160,182,.42) 0%,rgba(20,64,90,.56) 26%,rgba(9,30,48,.74) 62%,rgba(6,22,38,.83) 100%);
   filter:drop-shadow(0 -7px 18px rgba(2,14,26,.42));box-shadow:none}
 section.wl-collapsed.wl-pB>.wl-acc-head{-webkit-clip-path:url(#wlwB);clip-path:url(#wlwB);
   background:linear-gradient(180deg,rgba(58,150,176,.4) 0%,rgba(18,60,86,.55) 26%,rgba(8,28,46,.73) 62%,rgba(5,20,36,.83) 100%)}
 section.wl-collapsed:first-of-type>.wl-acc-head{margin-top:0!important}
-section.wl-collapsed>.wl-acc-head .wl-crest{opacity:.92}
+section.wl-collapsed>.wl-acc-head .wl-crest{opacity:.5}
 section.wl-collapsed>.wl-acc-head::after{top:auto;bottom:19px}
 section.wl-collapsed>:not(.wl-acc-head){display:none!important}
 @media (prefers-reduced-motion:reduce){.wl-crest{animation:none!important}.wl-acc-head{transition:none!important}}
