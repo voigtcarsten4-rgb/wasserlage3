@@ -8,7 +8,7 @@
 
 import { windAdvice } from '../lib/wind';
 import { currentMode } from './modes';
-import { activeToday } from '../lib/live';
+import { activeToday, fetchTrend } from '../lib/live';
 import { captainDepthScore } from '../lib/depthscore';
 
 interface FTItem { revier?:string; group?:string; abk?:string; section?:string; kind?:string; value?:string; cm?:number|null; status?:string }
@@ -51,6 +51,9 @@ let reserveMode = 'norm', profile = 'none';
 let MAXD = 3.0;
 let ft: FTDoc | null = null;
 let ctxWeather:any = null, ctxNotices:any[]|null = null;
+let ctxPegel:any[]|null = null;
+let pegelTrend:{dir:-1|0|1;delta:number;strong:boolean;station:string}|null = null;
+const trendCache:Record<string,any> = {};
 let bedDepth = 1.29;             // gewählte Fahrrinnentiefe (Median oder Abschnitt)
 let bedLabel = 'typ. Fahrrinnentiefe (Median)';
 let groups: Record<string, FTItem[]> = {};
@@ -341,6 +344,27 @@ function rowVerdict(cm:number|null, dCm:number, recCm:number){
 export function setTiefeFT(doc:any){ ft = doc; recompute(); }
 export function setTiefeContext(c:TiefeCtx){ if(c){ if('weather' in c) ctxWeather=c.weather; if('notices' in c) ctxNotices=c.notices||null; } renderReadout(); }
 
+/* ── Pegel-Trend (Pegelonline) → fließt zielgenau in den Captain-Score ── */
+function targetGroup():string|null{
+  if(sectionKey!=='auto' && groups[sectionKey]) return sectionKey;
+  let best:string|null=null, bestMin=Infinity;
+  for(const g of Object.keys(groups)){ const rc=reportedCm(groups[g]); if(!rc.length) continue; const mn=Math.min(...rc); if(mn<bestMin){ bestMin=mn; best=g; } }
+  return best;
+}
+function matchPegel(){
+  pegelTrend=null;
+  const g = targetGroup();
+  if(!ctxPegel || !ctxPegel.length || !g){ renderScore(); return; }
+  const GEN = new Set(['wasserstrasse','wasserstr','kanal','verbindungskanal','querfahrt','obere','untere','mittlere','sonstige']);
+  const toks = (s:string)=>{ const set=new Set<string>(); for(const t of String(s||'').toLowerCase().replace(/ß/g,'ss').split(/[^a-zäöü]+/)) if(t.length>=4 && !GEN.has(t)) set.add(t); return set; };
+  const gt = toks(g); let gauge:any=null;
+  for(const s of ctxPegel){ const wt=toks(s.water?.shortname||''); let hit=false; for(const tk of wt) if(gt.has(tk)){ hit=true; break; } if(hit){ gauge=s; break; } }
+  if(!gauge){ renderScore(); return; }
+  if(gauge.uuid in trendCache){ pegelTrend=trendCache[gauge.uuid]; renderScore(); return; }
+  fetchTrend(gauge.uuid).then(tr=>{ const val= tr? {dir:tr.dir,delta:tr.delta,strong:tr.strong,station:String(gauge.shortname||gauge.water?.shortname||g)} : null; trendCache[gauge.uuid]=val; pegelTrend=val; renderScore(); }).catch(()=>{ trendCache[gauge.uuid]=null; });
+}
+export function setTiefePegel(gauges:any[]){ ctxPegel = (gauges&&gauges.length)?gauges:null; matchPegel(); }
+
 function reportedCm(items:FTItem[]){ return items.filter(i=>i.cm!=null).map(i=>i.cm as number); }
 function median(arr:number[]){ if(!arr.length) return 0; const s=[...arr].sort((a,b)=>a-b); return s[Math.floor(s.length/2)]; }
 function scopeItems():FTItem[]{ return (sectionKey!=='auto' && groups[sectionKey]) ? groups[sectionKey] : (ft?.items || []); }
@@ -421,7 +445,7 @@ function renderScore(){
   const items=scopeItems();
   const s = captainDepthScore({
     draftCm: Math.round(draftT*100), recCm: recReserveCm(), depthsCm: reportedCm(items),
-    scopeLabel: scopeLabel(), wind: computeWind(), closures: matchClosures(items), pegel: null,
+    scopeLabel: scopeLabel(), wind: computeWind(), closures: matchClosures(items), pegel: pegelTrend,
   });
   (window as any).__wlDepthScore = s;
   const num=document.getElementById('scNum'); if(num) num.textContent=String(s.score);
@@ -667,7 +691,7 @@ function wireControls(){
     if(PROF[profile].cons){ reserveMode='kons'; const r=document.getElementById('tcxReserve'); r?.querySelectorAll('button').forEach(x=>x.classList.toggle('on',(x as HTMLElement).dataset.r==='kons')); }
     renderReadout(); if(reduceMotion()) frame(); });
   const sel=document.getElementById('tcxSection') as HTMLSelectElement|null;
-  sel?.addEventListener('change',()=>{ sectionKey=sel.value; const info=document.getElementById('pfInfo') as HTMLElement|null; if(info) delete info.dataset.touched; recompute(); if(reduceMotion()) frame(); });
+  sel?.addEventListener('change',()=>{ sectionKey=sel.value; matchPegel(); const info=document.getElementById('pfInfo') as HTMLElement|null; if(info) delete info.dataset.touched; recompute(); if(reduceMotion()) frame(); });
   const scroll=document.getElementById('pfScroll');
   scroll?.addEventListener('click',e=>{ const seg=(e.target as HTMLElement).closest('.pf-seg') as HTMLElement|null; if(!seg)return;
     scroll.querySelectorAll('.pf-seg').forEach(x=>x.classList.remove('sel')); seg.classList.add('sel');

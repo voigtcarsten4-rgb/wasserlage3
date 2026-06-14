@@ -748,6 +748,35 @@ function proximityHints(r: RouteResult): { p: number; html: string; say: string 
   if (bR) { const extra = bR.waypoints ? ` — ${bR.etappen || bR.waypoints.length} Etappen, ${bR.schleusen || 'einige'} Schleusen` : ''; out.push({ p: 4, html: `🚤 Du fährst im Revier <b>${E(bR.name)}</b>${extra}.`, say: `Du fährst im Revier ${bR.name}.` }); }
   return out.slice(0, 2);
 }
+/* Tiefgang-Bewusstsein: gleicht die Wasserstraßen der Route gegen echte ELWIS-Fahrrinnentiefen ab. */
+function depthOnRoute(r: RouteResult): { html: string } {
+  const ft = (window as any).__wlFT;
+  let draft = (window as any).__wlDraft as number;
+  if (typeof draft !== 'number' || !isFinite(draft)) { const s = parseFloat(String(localStorage.getItem('wl_draft') || '').replace(',', '.')); draft = isFinite(s) ? s : NaN; }
+  if (!ft || !ft.items || !ft.items.length || !isFinite(draft)) return { html: '' };
+  const ww: string[] = Array.isArray((r as any).waterways) ? (r as any).waterways : [];
+  if (!ww.length) return { html: '' };
+  const GEN = new Set(['wasserstrasse','wasserstr','kanal','verbindungskanal','querfahrt','obere','untere','mittlere','sonstige']);
+  const toks = (s: string) => { const set = new Set<string>(); for (const t of String(s || '').toLowerCase().replace(/ß/g, 'ss').split(/[^a-zäöü]+/)) if (t.length >= 4 && !GEN.has(t)) set.add(t); return set; };
+  const dCm = Math.round(draft * 100), RES = 30;
+  const m = (cm: number) => (cm / 100).toFixed(2).replace('.', ',') + ' m';
+  const hits: { name: string; min: number; clr: number }[] = [];
+  for (const w of ww) {
+    const wt = toks(String(w)); if (!wt.size) continue;
+    const cms = (ft.items as any[]).filter(i => i.cm != null).filter(i => { const gtk = toks(i.group || i.revier || ''); for (const t of gtk) if (wt.has(t)) return true; return false; }).map(i => i.cm as number);
+    if (!cms.length) continue;
+    const min = Math.min(...cms);
+    if (!hits.some(h => h.name === String(w))) hits.push({ name: String(w), min, clr: min - dCm });
+  }
+  if (!hits.length) return { html: '' };
+  hits.sort((a, b) => a.clr - b.clr);
+  const w0 = hits[0];
+  const ic = w0.clr < 0 ? '⛔' : w0.clr < RES ? '⚠️' : '✅';
+  const verd = w0.clr < 0 ? `${Math.abs(w0.clr)} cm zu flach für ${m(dCm)} Tiefgang` : w0.clr < RES ? `nur ${w0.clr} cm unter dem Kiel (knapp)` : `${w0.clr} cm Reserve`;
+  const cls = w0.clr < RES ? ' warn' : '';
+  return { html: `<div class="rt-sum-row${cls}">${ic} <b>Tiefe (ELWIS):</b> ${E(w0.name)} min ${m(w0.min)} — bei Tiefgang ${m(dCm)}: ${verd}. <span style="opacity:.75">Details im Tiefencheck · verbindlich bleibt ELWIS.</span></div>` };
+}
+
 function renderSummary(r: RouteResult | null) {
   const el = $('routeSummary'); if (!el) return;
   lastRoute = r;
@@ -757,7 +786,7 @@ function renderSummary(r: RouteResult | null) {
       <p class="rt-sum-note">Start oder Ziel liegt zu weit von einer gemappten schiffbaren Wasserstraße entfernt, oder die Reviere sind nicht durchgehend verbunden. Setze die Punkte näher ans Wasser oder prüfe ein anderes Revier.</p>`;
     return;
   }
-  const d = alongData(r); const ew = elwisOnRoute(r); const cm = communityOnRoute(r); const spd = speedForWaterways(r.waterways);
+  const d = alongData(r); const ew = elwisOnRoute(r); const cm = communityOnRoute(r); const spd = speedForWaterways(r.waterways); const dep = depthOnRoute(r);
   const _w = (window as any).__wlw;   // zielgruppen-kalibrierte Wind-Lage für genau dieses Boot (Planungs-Skipper)
   const _wa = _w ? windAdvice(currentMode().id, _w) : null;
   const windRow = _wa && _wa.lvl >= 1 ? `<div class="rt-sum-row${_wa.lvl === 2 ? ' warn' : ''}">${_wa.html}</div>` : '';
@@ -780,7 +809,7 @@ function renderSummary(r: RouteResult | null) {
     <div class="rt-sum-big"${detourBad ? ' style="opacity:.6"' : ''}><b>${fmtKm(r.distanceKm)}</b> · ~${fmtMin(r.durationMin)}
       <span class="rt-sum-sub">bei ~9 km/h inkl. ~20 min/Schleuse · Luftlinie ${fmtKm(r.crowKm)}</span></div>
     ${routeStory(r)}
-    ${detour}${spd ? `<div class="rt-sum-row">🚦 Zulässig hier max. <b>${spd.kmh} km/h</b>${spd.note ? ' · ' + E(spd.note) : ''}</div>` : ''}${ew.html}${cm.html}${locks}${conn}${snap}
+    ${detour}${spd ? `<div class="rt-sum-row">🚦 Zulässig hier max. <b>${spd.kmh} km/h</b>${spd.note ? ' · ' + E(spd.note) : ''}</div>` : ''}${ew.html}${cm.html}${dep.html}${locks}${conn}${snap}
     ${tipNav()}
     <div class="rt-sum-acts">
       <button type="button" data-act="preview" class="rt-act rt-act-go" title="Tour als 3D-Vorschau abspielen — Boot fährt die Route ab">▶ Tour abspielen</button>
@@ -938,6 +967,7 @@ export function initRoute(api: MapAPI, noticesProvider?: () => { notices: Notice
   }));
   $('rtGeo')?.addEventListener('click', () => tryGeo(false));
   $('rtClear')?.addEventListener('click', clearRoute);
+  window.addEventListener('wl3-draft', () => { if (lastRoute) renderSummary(lastRoute); });
   $('rtNet')?.addEventListener('click', toggleNet);
   $('rtView')?.addEventListener('click', toggleCaptain);
   $('rtLast')?.addEventListener('click', restoreLastRoute);

@@ -6,7 +6,7 @@ import { windAdvice } from './lib/wind';
 import { initMap, addNoticeMarkers, KINDS, GROUPS, LAENDER, type MapAPI } from './map/map';
 import { renderModes, MODES, currentMode } from './ui/modes';
 import { renderWetter, renderPegel } from './ui/dashboard';
-import { initTiefeSim } from './ui/tiefesim';
+import { initTiefeSim, setTiefePegel } from './ui/tiefesim';
 import { renderMeldungen } from './ui/meldungen';
 import { initExplorer } from './ui/explorer';
 import { initCommunity } from './ui/community';
@@ -206,6 +206,7 @@ async function boot() {
   if (w || doc || ft) saveSnapshot({ w, doc, ft });                    // letzte Live-Lage sichern (für Offline)
   else { const s = loadSnapshot(); if (s) { w = s.w; doc = s.doc; ft = s.ft; snapNote = `📡 Offline · Stand letzter Abruf ${snapTime(s.ts)} Uhr — keine Live-Daten`; } }
   (window as any).__wlw = w;
+  (window as any).__wlFT = ft;
   if (w) applyTod(w.sunrise, w.sunset);
   renderSky(w); startSkyTicker(()=>w);
   const state = combine(w, doc?.notices ?? null);
@@ -215,7 +216,7 @@ async function boot() {
   initEarlyAccess(); initGamification(); initAcademy(); initShare(); initLegal();
   fetch(`${import.meta.env.BASE_URL}data/pegel.json`).then(r=>r.json()).then(async (pj)=>{
     const uuids = pj.groups.flatMap((g:any)=>g.stations.map((s:any)=>s.uuid));
-    renderPegel(await fetchPegel(uuids), ft);
+    const gauges = await fetchPegel(uuids); renderPegel(gauges, ft); try { setTiefePegel(gauges); } catch { /* */ }
   }).catch(()=>renderPegel([], ft));
 
   const api = await mapP;
