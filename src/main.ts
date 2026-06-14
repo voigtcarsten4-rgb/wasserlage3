@@ -273,3 +273,4 @@ boot();
 /* Wasserwelt: lazy nach erstem Render, kostet den Erstaufbau nichts */
 setTimeout(() => { import('./ui/water3d').then(m => m.initWater3D()).catch(()=>{}); }, 250);
 setTimeout(() => { import('./ui/progressive').then(m => m.initProgressive()).catch(()=>{}); }, 500);
+setTimeout(() => { import('./ui/footerweather').then(m => m.initFooterWeather()).catch(()=>{}); }, 600);
