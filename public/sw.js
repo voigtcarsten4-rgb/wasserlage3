@@ -6,7 +6,7 @@
  *  - Kartenkacheln (openfreemap/openseamap) → cache-first, gedeckelt
  *  - Live-Daten (Wetter/ELWIS/Pegelonline/Supabase) → network-only (kein veralteter Fake-Live)
  */
-const V = 'wl3-v57';
+const V = 'wl3-v58';
 const SHELL = `${V}-shell`, ASSET = `${V}-asset`, DATA = `${V}-data`, TILE = `${V}-tile`;
 const SHELL_URLS = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png'];
 const TILE_MAX = 600;
