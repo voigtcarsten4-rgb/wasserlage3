@@ -8,6 +8,28 @@ import { windAdvice } from '../lib/wind';
 const E = (s: any) => { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; };
 const BL: Record<string, string> = { SH: 'Schleswig-Holstein', HH: 'Hamburg', NI: 'Niedersachsen', HB: 'Bremen', MV: 'Meckl.-Vorpommern', BB: 'Brandenburg', BE: 'Berlin', ST: 'Sachsen-Anhalt', SN: 'Sachsen', TH: 'Thüringen', NW: 'NRW', HE: 'Hessen', RP: 'Rheinland-Pfalz', SL: 'Saarland', BW: 'Baden-Württ.', BY: 'Bayern' };
 const MC: Record<string, string> = { sup: '🛶 SUP/Kajak', hausboot: '🛥️ Hausboot', charter: '⛵ Yacht/Segeln', familie: '👨‍👩‍👧 Familie', tourist: '📸 Tourist', b2b: '🏢 Branche', angler: '🎣 Angler' };
+/* ── M25: „In der Nähe" — Reviere ↔ Events Cross-Links im Drawer (echte Anker, ≤60 km) ── */
+const NEAR_TOURS: Record<string, any> = {}; const NEAR_EVENTS: Record<string, any> = {};
+let deLoaded = false;
+async function loadNear() {
+  if (deLoaded) return; deLoaded = true;
+  const base = (import.meta as any).env?.BASE_URL || '/';
+  const g = (u: string) => fetch(`${base}data/${u}`, { signal: AbortSignal.timeout(12000) }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const [t, e] = await Promise.all([g('touren-de.json'), g('events-de.json')]);
+  (t?.touren || []).forEach((x: any) => { if (x.start_coord) NEAR_TOURS[x.id] = x; });
+  (e?.events || []).forEach((x: any) => { if (x.coord) NEAR_EVENTS[x.id] = x; });
+}
+loadNear();
+function havM(a: number[], b: number[]) { const R = 6371000, dLa = (b[1] - a[1]) * Math.PI / 180, dLo = (b[0] - a[0]) * Math.PI / 180, la1 = a[1] * Math.PI / 180, la2 = b[1] * Math.PI / 180; const x = Math.sin(dLa / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); }
+function nearSection(coord: number[] | undefined, kind: 'event' | 'revier', excludeId?: string): string {
+  if (!coord) return '';
+  const src = kind === 'event' ? NEAR_EVENTS : NEAR_TOURS;
+  const items = Object.values(src).filter((o: any) => o.id !== excludeId).map((o: any) => ({ o, d: havM(coord, kind === 'event' ? o.coord : o.start_coord) })).filter(x => x.d < 60000).sort((a, b) => a.d - b.d).slice(0, 3);
+  if (!items.length) return '';
+  const title = kind === 'event' ? '📅 Events in der Nähe' : '🚤 Reviere in der Nähe';
+  const rows = items.map(x => '<button class="wl-near" data-near="' + kind + ':' + E(x.o.id) + '"><b>' + E(x.o.name) + '</b> · ' + Math.round(x.d / 1000) + ' km</button>').join('');
+  return '<h3 class="wl-h">' + title + '</h3><div class="wl-nearwrap">' + rows + '</div>';
+}
 const FAV = 'wl3_favs';
 export const favsList = (): string[] => { try { return JSON.parse(localStorage.getItem(FAV) || '[]'); } catch { return []; } };
 const isFav = (k: string) => favsList().includes(k);
@@ -29,7 +51,12 @@ function ensureDrawer(): HTMLElement {
   drawer = document.createElement('div'); drawer.id = 'wlDrawer'; drawer.className = 'wl-drawer'; drawer.hidden = true;
   drawer.innerHTML = `<div class="wl-scrim" data-close></div><aside class="wl-panel glass" role="dialog" aria-modal="true" aria-label="Detailansicht"><button class="wl-x" data-close aria-label="Schließen">×</button><div class="wl-body" id="wlBody"></div></aside>`;
   document.body.appendChild(drawer);
-  drawer.addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('[data-close]')) close(); });
+  drawer.addEventListener('click', (e) => {
+    const tg = e.target as HTMLElement;
+    if (tg.closest('[data-close]')) { close(); return; }
+    const n = tg.closest('[data-near]') as HTMLElement | null;
+    if (n) { const parts = n.dataset.near!.split(':'); const o = parts[0] === 'event' ? NEAR_EVENTS[parts[1]] : NEAR_TOURS[parts[1]]; if (o) { if (parts[0] === 'event') openEvent(o); else openRevier(o); } }
+  });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drawer && !drawer.hidden) close(); });
   return drawer;
 }
@@ -81,6 +108,7 @@ export function openRevier(t: any) {
     ${schutz}${umt}
     <div class="wl-sec">🛟 ${E(t.sicherheit)}</div>
     ${wp}
+    ${nearSection(t.start_coord, 'event', t.id)}
     <div class="wl-src">Quelle: <a href="${E(t.quelle)}" target="_blank" rel="noopener">${E(t.quelle_label)} ↗</a> · Qualität ${E(t.quellenqualitaet)} · Geo: ${E(t.coordsStatus)}</div>
     ${actions(t.name, 'revier:' + t.id, t.start_coord)}`, t.name);
 }
@@ -95,6 +123,7 @@ export function openEvent(e: any) {
     <ul class="wl-facts"><li><span class="wl-fi">📅</span>${date}</li><li><span class="wl-fi">🎟️</span>Eintritt: ${E(e.eintritt)}</li><li><span class="wl-fi">👥</span>${E(e.groesse)}</li></ul>
     <div class="wl-sec">${E(e.aktivitaeten)}</div>
     <div class="wl-lilly"><span class="wl-lav">🧭</span><span><b>Lilly-Tipp:</b> ${E(e.lilly)}</span></div>
+    ${nearSection(e.coord, 'revier')}
     <div class="wl-src">Quelle: <a href="${E(e.link)}" target="_blank" rel="noopener">${E(e.quelle_label)} ↗</a> · Qualität ${E(e.quellenqualitaet)} · Geo: ${E(e.coordsStatus || 'n/a')}</div>
     ${actions(e.name, 'event:' + e.id, e.coord)}`, e.name);
 }
