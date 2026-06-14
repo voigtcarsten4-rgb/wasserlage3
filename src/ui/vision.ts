@@ -9,6 +9,21 @@ import { currentMode } from './modes';
 
 const ICON: Record<string, string> = (() => { const m: Record<string, string> = {}; for (const k of KINDS) m[k.kind] = k.icon; return m; })();
 const LABEL: Record<string, string> = (() => { const m: Record<string, string> = {}; for (const k of KINDS) m[k.kind] = k.label; return m; })();
+ICON['revier'] = '🚤'; ICON['event'] = '📅'; LABEL['revier'] = 'Revier'; LABEL['event'] = 'Event';
+/* M26: geocodierte Revier-/Event-Anker im Vision-Mode (zusätzlich zu Karten-POIs) */
+let V_ANCHORS: { coord: [number, number]; kind: string; name: string; modes: string[] }[] = [];
+let vAnchorsLoaded = false;
+async function loadVAnchors() {
+  if (vAnchorsLoaded) return; vAnchorsLoaded = true;
+  const base = (import.meta as any).env?.BASE_URL || '/';
+  const g = (u: string) => fetch(`${base}data/${u}`, { signal: AbortSignal.timeout(12000) }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const [t, e] = await Promise.all([g('touren-de.json'), g('events-de.json')]);
+  const a: any[] = [];
+  (t?.touren || []).forEach((x: any) => { if (x.start_coord) a.push({ coord: x.start_coord, kind: 'revier', name: x.name, modes: x.modes || [] }); });
+  (e?.events || []).forEach((x: any) => { if (x.coord) a.push({ coord: x.coord, kind: 'event', name: x.name, modes: x.modes || [] }); });
+  V_ANCHORS = a;
+}
+loadVAnchors();
 const FOCUS_EXTRA = ['gelbe_welle', 'wsp', 'notfall', 'medizin', 'schleuse']; // Sicherheit/Orientierung immer relevant
 
 const toR = Math.PI / 180, toD = 180 / Math.PI;
@@ -49,6 +64,12 @@ function nearbyPois(pos: [number, number], maxM = 4000, cap = 7): VPoi[] {
     const ll = g.coordinates as [number, number];
     const d = distM(pos, ll); if (d > maxM) continue;
     out.push({ lng: ll[0], lat: ll[1], kind: k, name: f.properties?.name || LABEL[k] || k, dist: d, brg: bearing(pos, ll) });
+  }
+  const _m = currentMode().id; const _all = _m === 'kapitaen' || _m === 'b2b' || _m === 'notfall';
+  for (const an of V_ANCHORS) {
+    if (!(_all || an.modes.includes(_m))) continue;
+    const d = distM(pos, an.coord); if (d > maxM) continue;
+    out.push({ lng: an.coord[0], lat: an.coord[1], kind: an.kind, name: an.name, dist: d, brg: bearing(pos, an.coord) });
   }
   out.sort((a, b) => a.dist - b.dist);
   return out.slice(0, cap);
