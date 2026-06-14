@@ -5,7 +5,8 @@ import { combine } from './lib/ampel';
 import { windAdvice } from './lib/wind';
 import { initMap, addNoticeMarkers, KINDS, GROUPS, LAENDER, type MapAPI } from './map/map';
 import { renderModes, MODES, currentMode } from './ui/modes';
-import { renderWetter, renderPegel, renderFT, initTiefe } from './ui/dashboard';
+import { renderWetter, renderPegel } from './ui/dashboard';
+import { initTiefeSim } from './ui/tiefesim';
 import { renderMeldungen } from './ui/meldungen';
 import { initExplorer } from './ui/explorer';
 import { initCommunity } from './ui/community';
@@ -210,7 +211,7 @@ async function boot() {
   const state = combine(w, doc?.notices ?? null);
   setAmpel(state); setReco(state, doc, w); setChips(w, doc, ft);
   if (snapNote) { const _src = document.getElementById('ampelSrc'); if (_src) _src.textContent = snapNote; }
-  renderMeldungen(doc, deDoc); renderWetter(w); initFooter(w); renderFT(ft); initTiefe();
+  renderMeldungen(doc, deDoc); renderWetter(w); initFooter(w); initTiefeSim(ft);
   initEarlyAccess(); initGamification(); initAcademy(); initShare(); initLegal();
   fetch(`${import.meta.env.BASE_URL}data/pegel.json`).then(r=>r.json()).then(async (pj)=>{
     const uuids = pj.groups.flatMap((g:any)=>g.stations.map((s:any)=>s.uuid));

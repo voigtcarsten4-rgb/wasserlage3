@@ -191,16 +191,16 @@ export function initNele(state: NeleState) {
   addEventListener('online', renderChips); addEventListener('offline', renderChips);
 
   let greeted = false;
-  const open = () => {
+  const open = (auto = false) => {
     panel.hidden = false; panel.style.removeProperty('display'); root.classList.add('is-open');
     if (!greeted) { greeted = true;
-      say('Moin! 👋 Ich bin <b>Nele</b>, deine Lotsin fürs Revier — jetzt <b>deutschlandweit</b> an Bord. Sag mir, was du vorhast: ob du heute rausfahren kannst, wo\'s eng wird, wo du tankst, anlegst, isst oder die schönste Wasser-Route findest. ⚓');
+      say('Ahoi! 👋 Ich bin <b>Nele</b>, deine Lotsin fürs Revier. Ich helfe dir, <b>Wasserstände, Sperrungen, Tiefen, Wetter</b> und <b>sichere Routen</b> schneller zu verstehen — jetzt <b>deutschlandweit</b> an Bord. ⚓');
       { const _m = currentMode(); say(`Dein Modus: <b>${_m.label}</b> — ich achte für dich vor allem auf ${_m.focus}.`); }
       if (navigator.onLine) setTimeout(() => say(reco(state)), 500);
       else setTimeout(() => say('Du bist gerade <b>offline</b> — Live-Lage & Wetter zeige ich wieder online. Checkliste, Sicherheit, Notfall, Schleuse & Revier habe ich auch ohne Netz.'), 500);
       renderChips();
     }
-    setTimeout(() => input.focus(), 200);
+    if (!auto) setTimeout(() => input.focus(), 200);
   };
   const close = () => { panel.hidden = true; panel.style.setProperty('display', 'none', 'important'); root.classList.remove('is-open'); if ('speechSynthesis' in window) window.speechSynthesis.cancel(); };
   fab.onclick = () => { if (panel.hidden) open(); else close(); };
@@ -244,7 +244,8 @@ export function initNele(state: NeleState) {
   /* Dezenter Erst-Hinweis: einmal pro Gerät */
   try {
     if (!localStorage.getItem('wl3_nele_seen')) {
-      setTimeout(() => { if (panel.hidden) fab.classList.add('hint'); }, 6000);
+      // Einmaliges Intro beim ersten Besuch: Nele stellt sich kurz vor (ohne Tastatur aufzudrängen)
+      setTimeout(() => { if (panel.hidden) open(true); localStorage.setItem('wl3_nele_seen', '1'); }, 3400);
       fab.addEventListener('click', () => { localStorage.setItem('wl3_nele_seen', '1'); fab.classList.remove('hint'); }, { once: true });
     }
   } catch { /* */ }
