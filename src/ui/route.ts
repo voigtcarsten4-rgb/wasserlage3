@@ -481,6 +481,7 @@ function startNav(source: NavSource) {
   const _wa = _w ? windAdvice(currentMode().id, _w) : null;
   if (_wa && _wa.lvl >= 1) notices.push({ html: _wa.html, say: _wa.say });   // aktuelle, boots-spezifische Wind-Lage zuerst
   else { const wind = windFreshenNote(); if (wind) notices.push(wind); }      // sonst: Vorhersage „Wind frischt auf"
+  for (const h of proximityHints(lastRoute)) notices.push(h);                 // Event-/Revier-Naehe (M23)
   showStartupNotices(notices);
   if (source === 'preview') {
     const durSec = Math.min(30, Math.max(12, navTotM / 220));
@@ -721,6 +722,29 @@ function routeStory(r: RouteResult): string {
   const sun = w && w.sunset ? `<div class="rs-sun">🌅 Sonnenuntergang ${E(w.sunset)} Uhr · Ankunft ~${etaClock(r)} (${fmtMin(r.durationMin)})</div>` : '';
   return `<div class="rt-story"><div class="rt-story-h">🗺️ Dein Törn <span class="rt-story-sub">für ${E(m.label)}</span></div><ul class="rt-story-list">${rows.join('')}</ul>${sun}</div>`;
 }
+/* ── Event-/Revier-Proximity (M23): echte Anker nahe der Route → ruhiger Lilly-Hinweis ── */
+let EVENTS_DE: any[] = []; let TOUREN_DE: any[] = [];
+async function loadDE() {
+  if (EVENTS_DE.length || TOUREN_DE.length) return;
+  const base = (import.meta as any).env?.BASE_URL || '/';
+  const g = (u: string) => fetch(`${base}data/${u}`, { signal: AbortSignal.timeout(12000) }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const [e, t] = await Promise.all([g('events-de.json'), g('touren-de.json')]);
+  EVENTS_DE = (e?.events || []).filter((x: any) => x.coord);
+  TOUREN_DE = (t?.touren || []).filter((x: any) => x.start_coord);
+}
+loadDE();
+function routeMinM(coord: LngLat, coords: LngLat[]): number { let best = Infinity; const step = Math.max(1, Math.floor(coords.length / 300)); for (let i = 0; i < coords.length; i += step) { const d = haversineM(coord, coords[i]); if (d < best) best = d; } return best; }
+function evtCopilotStatus(e: any): 'live' | 'soon' | null { if (!e.start) return null; const today = new Date(); today.setHours(0, 0, 0, 0); const s = new Date(e.start + 'T00:00'), en = new Date((e.end || e.start) + 'T23:59'); if (en < today) return null; if (s.getTime() <= today.getTime() + 86400000 && en.getTime() >= today.getTime()) return 'live'; return (s.getTime() - today.getTime()) / 86400000 <= 14 ? 'soon' : null; }
+function proximityHints(r: RouteResult): { html: string; say: string }[] {
+  const out: { html: string; say: string }[] = []; const co = r.coords; if (!co || co.length < 2) return out;
+  let bE: any = null, bED = Infinity;
+  for (const e of EVENTS_DE) { const st = evtCopilotStatus(e); if (!st) continue; const d = routeMinM(e.coord, co); if (d < 3500 && d < bED) { bED = d; bE = { e, st }; } }
+  if (bE) { const when = bE.st === 'live' ? 'aktuell' : 'demnächst'; out.push({ html: `📅 Auf deiner Route liegt ${when} <b>${E(bE.e.name)}</b>${bE.e.ort ? ` · ${E(bE.e.ort)}` : ''} — im Hafenbereich mehr Verkehr &amp; volle Stege einplanen.`, say: `Auf deiner Route liegt ${when} ${bE.e.name}. Im Hafenbereich mehr Verkehr.` }); }
+  let bR: any = null, bRD = Infinity;
+  for (const t of TOUREN_DE) { const d = routeMinM(t.start_coord, co); if (d < 6000 && d < bRD) { bRD = d; bR = t; } }
+  if (bR) { const extra = bR.waypoints ? ` — ${bR.etappen || bR.waypoints.length} Etappen, ${bR.schleusen || 'einige'} Schleusen` : ''; out.push({ html: `🚤 Du fährst im Revier <b>${E(bR.name)}</b>${extra}.`, say: `Du fährst im Revier ${bR.name}.` }); }
+  return out.slice(0, 2);
+}
 function renderSummary(r: RouteResult | null) {
   const el = $('routeSummary'); if (!el) return;
   lastRoute = r;
@@ -734,6 +758,7 @@ function renderSummary(r: RouteResult | null) {
   const _w = (window as any).__wlw;   // zielgruppen-kalibrierte Wind-Lage für genau dieses Boot (Planungs-Skipper)
   const _wa = _w ? windAdvice(currentMode().id, _w) : null;
   const windRow = _wa && _wa.lvl >= 1 ? `<div class="rt-sum-row${_wa.lvl === 2 ? ' warn' : ''}">${_wa.html}</div>` : '';
+  const proxRows = proximityHints(r).map(h => `<div class="rt-sum-row">${h.html}</div>`).join('');
   const lockHrs = r.locks.map(n => { const h = lockHoursFor(n); return h ? `${E(n)} <span class="rt-lock-hrs">(${E(h.times || h.season || 'Zeiten s. Quelle')})</span>` : E(n); });
   const locks = r.locks.length
     ? `<div class="rt-sum-row">🚪 <b>${r.locks.length} Schleuse${r.locks.length > 1 ? 'n' : ''}</b> <span>${lockHrs.join(' · ')}</span></div>` : '';
@@ -748,6 +773,7 @@ function renderSummary(r: RouteResult | null) {
     <div class="rt-sum-head">🚤 Route auf dem Wasser <span class="rt-beta">Beta</span></div>
     ${lillyLine(r, d, ew.count)}
     ${windRow}
+    ${proxRows}
     <div class="rt-sum-big"${detourBad ? ' style="opacity:.6"' : ''}><b>${fmtKm(r.distanceKm)}</b> · ~${fmtMin(r.durationMin)}
       <span class="rt-sum-sub">bei ~9 km/h inkl. ~20 min/Schleuse · Luftlinie ${fmtKm(r.crowKm)}</span></div>
     ${routeStory(r)}
