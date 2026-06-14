@@ -47,7 +47,7 @@ const CSS = `
 #water3d #wl-flock .wl-wing{animation-duration:.85s}
 @keyframes wlFlock{0%{transform:translate(-18vw,11vh)}100%{transform:translate(118vw,7vh)}}
 #water3d #wl-haze{position:absolute;left:0;right:0;top:52%;height:11%;transform:translateY(-50%);pointer-events:none;z-index:2;transition:background 1.6s ease;mix-blend-mode:screen;filter:blur(3px)}
-#water3d #wl-waterwrap{position:absolute;left:0;right:0;top:48%;bottom:0;overflow:hidden;z-index:1;-webkit-mask-image:linear-gradient(to bottom,transparent 0%,#000 17%,#000 100%);mask-image:linear-gradient(to bottom,transparent 0%,#000 17%,#000 100%)}
+#water3d #wl-waterwrap{position:absolute;left:0;right:0;top:48%;bottom:0;overflow:hidden;z-index:1;background:linear-gradient(180deg,#1c5876 0%,#0e3d59 42%,#072437 78%,#06121f 100%);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,#000 17%,#000 100%);mask-image:linear-gradient(to bottom,transparent 0%,#000 17%,#000 100%)}
 #water3d .wl-vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity 1.4s ease,filter 1.6s ease;will-change:opacity}
 #water3d #wl-wgrade{position:absolute;inset:0;pointer-events:none;transition:background 1.6s ease;mix-blend-mode:soft-light}
 #water3d #wl-glint{position:absolute;top:0;width:120px;height:100%;pointer-events:none;transform:translateX(-50%);mix-blend-mode:screen;filter:blur(7px);transition:opacity 1.2s ease,background 1.2s ease}
@@ -71,7 +71,7 @@ const DOM = `
   </div>
 </div>
 <div id="wl-haze"></div>
-<div id="wl-waterwrap"><video id="wl-vday" class="wl-vid" autoplay loop muted playsinline preload="auto" src="/water_day.mp4"></video><video id="wl-vnight" class="wl-vid" autoplay loop muted playsinline preload="auto" src="/water_night.mp4" style="opacity:0"></video><div id="wl-glint"></div><div id="wl-wgrade"></div></div>
+<div id="wl-waterwrap"><video id="wl-vday" class="wl-vid" autoplay loop muted playsinline preload="auto" src="/water_day.mp4" style="opacity:0"></video><video id="wl-vnight" class="wl-vid" autoplay loop muted playsinline preload="auto" src="/water_night.mp4" style="opacity:0"></video><div id="wl-glint"></div><div id="wl-wgrade"></div></div>
 <div id="wl-vign"></div>`;
 
 export function initWater3D(){

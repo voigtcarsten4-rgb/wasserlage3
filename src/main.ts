@@ -4,7 +4,7 @@ import { fetchNotices, fetchNoticesDE, fetchFT, fetchPegel, fetchWeather, active
 import { combine } from './lib/ampel';
 import { windAdvice } from './lib/wind';
 import { initMap, addNoticeMarkers, KINDS, GROUPS, LAENDER, type MapAPI } from './map/map';
-import { renderModes, MODES, currentMode } from './ui/modes';
+import { renderModes, MODES, currentMode, initModeBarScroll } from './ui/modes';
 import { renderWetter, renderPegel } from './ui/dashboard';
 import { initTiefeSim, setTiefePegel } from './ui/tiefesim';
 import { renderMeldungen } from './ui/meldungen';
@@ -190,6 +190,7 @@ async function boot() {
   initSafety();
   initReveal();
   initNav();
+  initModeBarScroll();
   initCommunity();
   initTouren();
   initTourenDE();

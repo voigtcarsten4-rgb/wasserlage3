@@ -33,10 +33,40 @@ export function renderModes(el: HTMLElement, onPick: (m: Mode)=>void) {
   el.innerHTML = '';
   const active = currentModeId();
   MODES.forEach((m) => {
+    const mm = m.label.match(/^(\S+)\s+([\s\S]+)$/);
+    const ic = mm ? mm[1] : ''; const tx = mm ? mm[2] : m.label;
     const b = document.createElement('button');
-    b.className = 'mode' + (m.id === active ? ' on' : ''); b.textContent = m.label;
-    b.onclick = () => { el.querySelectorAll('.mode').forEach(x=>x.classList.remove('on')); b.classList.add('on'); applyMode(m.id); onPick(m); };
+    b.type = 'button';
+    b.className = 'mode' + (m.id === active ? ' on' : '');
+    b.dataset.mode = m.id;
+    b.setAttribute('aria-pressed', m.id === active ? 'true' : 'false');
+    b.innerHTML = `<span class="m-sheen" aria-hidden="true"></span><span class="m-ic" aria-hidden="true">${ic}</span><span class="m-tx">${tx}</span>`;
+    b.onclick = () => {
+      el.querySelectorAll('.mode').forEach(x => { x.classList.remove('on'); x.setAttribute('aria-pressed', 'false'); });
+      b.classList.add('on'); b.setAttribute('aria-pressed', 'true');
+      b.classList.remove('sweep'); void b.offsetWidth; b.classList.add('sweep'); // weicher Glow-Sweep beim Wechsel
+      applyMode(m.id); onPick(m);
+      try { b.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); } catch { /* */ }
+    };
     el.appendChild(b);
   });
   document.documentElement.dataset.mode = active;
+}
+
+/* Smart-Sticky-Rollenleiste: Hero sichtbar = groß · gescrollt = kompakt · tief = Floating-Mini.
+ * Reine Klassen-Toggles (CSS-Transitions, GPU) via IntersectionObserver + rAF-gedrosseltem Scroll — keine Reflows im Loop. */
+export function initModeBarScroll() {
+  const bar = document.getElementById('modes'); if (!bar) return;
+  let queued = false;
+  // deterministisch, viewport-relativ: <1.3vh = groß (Hero-Nähe) · 1.3–2.6vh = kompakt · >2.6vh = Floating-Mini
+  const compute = () => {
+    queued = false;
+    const y = window.scrollY || document.documentElement.scrollTop || 0, vh = innerHeight || 800;
+    bar.classList.toggle('m-compact', y >= vh * 1.3 && y < vh * 2.6);
+    bar.classList.toggle('m-float', y >= vh * 2.6);
+  };
+  const onScroll = () => { if (!queued) { queued = true; requestAnimationFrame(compute); } };
+  addEventListener('scroll', onScroll, { passive: true });
+  addEventListener('resize', onScroll, { passive: true });
+  compute();
 }
