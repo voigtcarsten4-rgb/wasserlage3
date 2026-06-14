@@ -1234,3 +1234,26 @@ html[data-tod="night"] .td-head,html[data-tod="dusk"] .td-head{border-bottom-col
 #tiefe .ft-vd::before{content:'';display:block;width:9px;height:9px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}
 #tiefe .ft-vd.ok{color:#39d98a}#tiefe .ft-vd.warn{color:#f0c674}#tiefe .ft-vd.bad{color:#ff6b5a}#tiefe .ft-vd.na{color:#5f7a8a}
 #tiefe .ft-xsec{max-width:460px;margin:2px auto 16px;border-radius:14px;box-shadow:0 0 0 1px rgba(217,177,77,.14),0 14px 30px -18px rgba(0,12,24,.7)}
+
+/* ═══ Lesbarkeit 3.0 · einheitliches Creme-Schema für Inhaltsboxen (theme-unabhängig, max Kontrast) ═══ */
+:root{--wl-cream:rgba(251,247,238,.94);--wl-ci:#16314c;--wl-ci2:#5d7184;--wl-link:#1a6f9c}
+.panel.glass,.glass,.td-card,.ed-card,.fav-card,.ts-card,.chal-rewards,.acad-card,.acad-hero,.legal-box{
+  background:var(--wl-cream)!important;border:1px solid rgba(201,152,47,.30)!important;color:var(--wl-ci)!important;
+  -webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px);box-shadow:0 12px 32px -16px rgba(4,18,31,.5)!important}
+.panel.glass h1,.panel.glass h2,.panel.glass h3,.panel.glass h4,.panel.glass p,.panel.glass b,.panel.glass strong,.panel.glass li,.panel.glass div,
+.glass h2,.glass h3,.glass h4,.glass p,.glass b,.td-card,.td-card b,.ed-card,.ed-card b,.acad-card,.acad-card h4,.acad-card p,.acad-hero,.acad-hero h3,.acad-hero p{color:var(--wl-ci)!important}
+.panel.glass small,.glass small,.chal-rewards span,.acad-card p,.td-card small,.ed-card small,.pass-how,.pass-next,.acad-hero p,.td-rev,.ed-card .ed-meta{color:var(--wl-ci2)!important}
+.panel.glass a,.glass a,.acad-card a,.acad-mini,.td-card a,.ed-card a{color:var(--wl-link)!important}
+/* Challenge-Karten: von transparent → Creme + dunkler Text */
+.chal-card{background:linear-gradient(150deg,rgba(251,247,238,.96),rgba(244,234,214,.93))!important;border:1px solid rgba(201,152,47,.28)!important;color:var(--wl-ci)!important}
+.chal-card b{color:var(--wl-ci)!important}.chal-card small{color:var(--wl-ci2)!important}
+.chal-card:hover{border-color:rgba(201,152,47,.62)!important;box-shadow:0 10px 26px -12px rgba(4,18,31,.3)!important}
+/* Sub-Elemente in Creme-Boxen */
+.panel.glass .row,.panel.glass .kv,.row,.kv{background:rgba(20,49,73,.055)!important;color:var(--wl-ci)!important}
+.pass-handle{background:rgba(20,49,73,.06)!important;color:var(--wl-ci)!important;border-color:rgba(201,152,47,.3)!important}
+.pass-handle::placeholder{color:#8a99a6}
+.pass-bar{background:rgba(20,49,73,.12)!important}
+.pass-pts,.pass-rank b{color:var(--gold-deep,#C9982F)!important}
+.acad-mini{background:rgba(20,49,73,.06)!important;border:1px solid rgba(201,152,47,.3)!important}
+.acad-hero-badge{background:rgba(20,49,73,.08)!important;color:var(--wl-ci)!important}
+.exp-bar input,.exp-bar select,.comm-form input,.comm-form select,.comm-form textarea{background:rgba(251,247,238,.96)!important;color:var(--wl-ci)!important}
