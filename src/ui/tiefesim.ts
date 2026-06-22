@@ -724,6 +724,7 @@ export function initTiefeSim(doc:any, ctx2?:TiefeCtx){
   for(let i=0;i<14;i++) bubbles.push({x:Math.random(),y:Math.random(),s:1+Math.random()*2,sp:.15+Math.random()*.3});
   try{ const s=localStorage.getItem('wl_draft'); if(s && +s>=0.1 && +s<=MAXD){ draftT=+s; draft=+s; } else { draftT=BOATS[typeIdx].draft; draft=draftT; } }catch{ draftT=BOATS[typeIdx].draft; draft=draftT; }
   (window as any).__wlDraft = draftT;
+  (window as any).__wlSetDraft = (m:number)=>{ try{ setDraft(+m); }catch{ /* */ } };
   resize(); renderGarage(); wireDial(); wirePrecision(); wireGarage(); wireControls();
   if('ResizeObserver' in window){ new ResizeObserver(()=>{ resize(); if(reduceMotion()) frame(); }).observe(cv); } else addEventListener('resize',resize);
   ft=doc; recompute();
