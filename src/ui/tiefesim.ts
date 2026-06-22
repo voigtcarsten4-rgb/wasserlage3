@@ -156,6 +156,7 @@ const CSS_X = `
 #tcx .tc-boat .x:hover{background:rgba(255,75,92,.25);color:#fff}
 #tcx .tc-boat.add{border-style:dashed;border-color:rgba(143,233,255,.4);color:#bfe6f5}
 #tcx .tcx-boatform{max-width:760px;margin:6px auto 0;background:rgba(7,26,40,.6);border:1px solid rgba(143,233,255,.2);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:9px}
+#tcx .tcx-boatform[hidden]{display:none!important}
 #tcx .bf-row{display:flex;gap:9px;flex-wrap:wrap}
 #tcx .bf-row label{flex:1 1 130px;display:flex;flex-direction:column;gap:3px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#8fb6c8}
 #tcx .bf-row input,#tcx .bf-row select{background:rgba(4,18,31,.7);border:1px solid rgba(143,233,255,.2);color:#eafaff;border-radius:9px;padding:8px 10px;font:600 13px var(--font-b,sans-serif)}
@@ -231,6 +232,13 @@ const CSS_X = `
   #tcx .tcx-score{flex-direction:column;text-align:center;align-items:center}
   #tcx .sc-body{width:100%}#tcx .sc-top,#tcx .sc-drivers{justify-content:center}
   #tcx .pr-field input{font-size:21px;width:64px}
+  #tcx .tcx-types,#tcx .tcx-precision,#tcx .tcx-score,#tcx .tcx-warn,#tcx .tcx-profile,#tcx .tcx-ctrl,#tcx .tcx-detail,#tcx .tcx-note{margin-top:11px}
+  #tcx canvas{height:clamp(340px,46vh,480px)}
+  #tcx .pf-bars{scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;gap:4px}
+  #tcx .pf-seg{width:30px;scroll-snap-align:center}
+  #tcx .pr-field{min-height:46px}
+  #tcx select.tcx-sec{padding:11px 12px;min-height:44px}
+  #tcx .tcx-ctrl{gap:8px}
 }`;
 
 function buildDOM(host:HTMLElement){
