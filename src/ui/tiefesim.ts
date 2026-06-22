@@ -354,7 +354,7 @@ function buildDOM(host:HTMLElement){
         <button data-r="kons">konservativ</button><button data-r="norm" class="on">normal</button><button data-r="sport">sportlich</button></div>
       <div class="seg" id="tcxProfile2"><span class="seg-lab">Profil</span>
         <button data-p="none" class="on">Standard</button><button data-p="fam">👨‍👩‍👧 Familie</button><button data-p="anf">🔰 Anfänger</button><button data-p="charter">🚤 Charter</button></div>
-      <select class="tcx-sec" id="tcxSection" aria-label="Gewässerabschnitt"><option value="auto">📍 Typisch (Median, alle gemeldet)</option></select>
+      <select class="tcx-sec" id="tcxSection" aria-label="Gewässerabschnitt"><option value="auto">📍 Berlin/Brandenburg (Heimrevier)</option></select>
       <button class="tcx-route" id="tcxToRoute" type="button">🧭 Tiefgang für Route übernehmen</button>
     </div>
     <details class="tcx-detail" id="tcxDetail">
@@ -413,8 +413,31 @@ function reportedCm(items:FTItem[]){ return items.filter(i=>i.cm!=null).map(i=>i
 function median(arr:number[]){ if(!arr.length) return 0; const s=[...arr].sort((a,b)=>a-b); return s[Math.floor(s.length/2)]; }
 /* Alter des F/T-Snapshots in Tagen (Ehrlichkeit über Aktualität — kein 9 Tage alter „Live"-Schwindel) */
 function ftAgeDays(stand:string):number|null{ const m=/(\d{2})\.(\d{2})\.(\d{4})/.exec(stand||''); if(!m) return null; const d=new Date(+m[3],+m[2]-1,+m[1]); if(isNaN(d.getTime())) return null; return Math.floor((Date.now()-d.getTime())/86400000); }
-function scopeItems():FTItem[]{ return (sectionKey!=='auto' && groups[sectionKey]) ? groups[sectionKey] : (ft?.items || []); }
-function scopeLabel():string{ return (sectionKey!=='auto' && groups[sectionKey]) ? sectionKey : 'allen gemeldeten Revieren'; }
+/* ── Heimrevier-Default (M45b) ──────────────────────────────────────────────
+ * Ohne gewählte Strecke/Standort darf die „engste Stelle" NICHT der flachste Abschnitt
+ * irgendwo in DE sein (z. B. Elbe „Elstermündung–Saalemündung" 0,68 m) — sonst wirkt schon
+ * ab ~0,6 m Tiefgang eine Warnung, obwohl das mit Berlin/Brandenburg nichts zu tun hat.
+ * Beachhead = Berlin/Brandenburg = Reviere Havel + Oder. Default = BB; explizit wählbar bleibt
+ * jeder Abschnitt sowie '__all__' = ganzes gemeldetes Netz (Elbe–Oder). */
+const HOME_REVIERE = new Set(['havel','oder']);
+function isHome(i:FTItem){ return HOME_REVIERE.has(String((i as any).revier||'').toLowerCase()); }
+function homeItems():FTItem[]{ const all=ft?.items||[]; const h=all.filter(isHome); return h.length? h : all; }
+function homeGroupNames():string[]{ const all=Object.keys(groups); const h=all.filter(g=>(groups[g]||[]).some(isHome)); return h.length? h : all; }
+function scopeGroupNames():string[]{
+  if (sectionKey!=='auto' && sectionKey!=='__all__' && groups[sectionKey]) return [sectionKey];
+  if (sectionKey==='__all__') return Object.keys(groups);
+  return homeGroupNames();
+}
+function scopeItems():FTItem[]{
+  if (sectionKey!=='auto' && sectionKey!=='__all__' && groups[sectionKey]) return groups[sectionKey];
+  if (sectionKey==='__all__') return ft?.items || [];
+  return homeItems();
+}
+function scopeLabel():string{
+  if (sectionKey!=='auto' && sectionKey!=='__all__' && groups[sectionKey]) return sectionKey;
+  if (sectionKey==='__all__') return 'allen gemeldeten Revieren (Elbe–Oder-Netz)';
+  return 'Berlin/Brandenburg (Havel & Oder)';
+}
 function minSection(items:FTItem[]):FTItem|null{ let best:FTItem|null=null; for(const i of items){ if(i.cm==null) continue; if(!best||(i.cm as number)<(best.cm as number)) best=i; } return best; }
 
 function computeWind():{lvl:0|1|2;text:string}|null{
@@ -425,9 +448,7 @@ function computeWind():{lvl:0|1|2;text:string}|null{
 function matchClosures(items:FTItem[]):{count:number;severe:boolean;first?:string}|null{
   if(!ctxNotices || !ctxNotices.length) return null;
   const names = new Set<string>();
-  const src = (sectionKey!=='auto' && groups[sectionKey])
-    ? [{ group:sectionKey, abk:groups[sectionKey][0]?.abk }]
-    : Object.keys(groups).map(g=>({ group:g, abk:groups[g][0]?.abk }));
+  const src = scopeGroupNames().map(g=>({ group:g, abk:groups[g]?.[0]?.abk }));
   for(const s of src){ if(s.group) names.add(normW(s.group)); }
   let count=0, severe=false, first='';
   for(const n of ctxNotices){
@@ -465,16 +486,17 @@ function recompute(){
       const o=document.createElement('option'); o.value=g; o.textContent=`${g} · min ${m2(Math.min(...reportedCm(groups[g]))/100)}`;
       sel.appendChild(o);
     }
+    const oa=document.createElement('option'); oa.value='__all__'; oa.textContent='🌊 Alle gemeldeten Abschnitte (Elbe–Oder)'; sel.appendChild(oa);
   }
   /* bedDepth gemäß Auswahl: auto=Median aller, sonst min des Abschnitts (limitierend) */
-  if (sectionKey==='auto' || !groups[sectionKey]){
-    const rcA = reportedCm(items);
-    bedDepth = (rcA.length? Math.min(...rcA):0)/100 || 1.29;   // M44: engste Stelle = synchron mit Cockpit-Verdikt
-    bedLabel = 'engste Fahrrinnentiefe (Gesamtnetz)';
-  } else {
+  if (sectionKey!=='auto' && sectionKey!=='__all__' && groups[sectionKey]){
     const rc = reportedCm(groups[sectionKey]);
     bedDepth = (rc.length? Math.min(...rc):0)/100 || 1.29;
     bedLabel = 'min. Fahrrinnentiefe '+sectionKey;
+  } else {
+    const rcS = reportedCm(scopeItems());   // M45b: Default = Heimrevier BB (Havel+Oder), nicht ganz DE → engste Stelle == Cockpit-Verdikt
+    bedDepth = (rcS.length? Math.min(...rcS):0)/100 || 1.29;
+    bedLabel = sectionKey==='__all__' ? 'engste Fahrrinnentiefe (ganzes Netz)' : 'engste Fahrrinnentiefe Berlin/Brandenburg';
   }
   const stand = ft.stand || ft.updated_de || '';
   const ageD = ftAgeDays(stand);
@@ -547,8 +569,7 @@ function profInfo(sec:string, cm:number, dCm:number, rec:number){
 function renderProfile(){
   const hostP=document.getElementById('tcxProfile'); if(!hostP) return;
   const dCm=Math.round(draftT*100), rec=recReserveCm();
-  const single = sectionKey!=='auto' && !!groups[sectionKey];
-  const order = single? [sectionKey] : Object.keys(groups);
+  const order = scopeGroupNames();   // M45b: Default = Heimrevier BB; '__all__' = alle; sonst gewählter Abschnitt
   const segs:{group:string;sec:string;cm:number}[]=[];
   const grp:{name:string;minCm:number;avgCm:number;count:number;worst:'ok'|'tight'|'bad'}[]=[];
   for(const g of order){
