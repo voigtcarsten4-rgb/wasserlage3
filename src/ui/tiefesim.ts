@@ -157,6 +157,10 @@ const CSS_X = `
 #tcx .tc-boat.add{border-style:dashed;border-color:rgba(143,233,255,.4);color:#bfe6f5}
 #tcx .tcx-boatform{max-width:760px;margin:6px auto 0;background:rgba(7,26,40,.6);border:1px solid rgba(143,233,255,.2);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:9px}
 #tcx .tcx-boatform[hidden]{display:none!important}
+#tcx .tcx-sheet-bd{display:none}
+@keyframes tcxSheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes tcxBdIn{from{opacity:0}to{opacity:1}}
+#tiefe-sect{will-change:auto}
 #tcx .bf-row{display:flex;gap:9px;flex-wrap:wrap}
 #tcx .bf-row label{flex:1 1 130px;display:flex;flex-direction:column;gap:3px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#8fb6c8}
 #tcx .bf-row input,#tcx .bf-row select{background:rgba(4,18,31,.7);border:1px solid rgba(143,233,255,.2);color:#eafaff;border-radius:9px;padding:8px 10px;font:600 13px var(--font-b,sans-serif)}
@@ -239,6 +243,10 @@ const CSS_X = `
   #tcx .pr-field{min-height:46px}
   #tcx select.tcx-sec{padding:11px 12px;min-height:44px}
   #tcx .tcx-ctrl{gap:8px}
+  #tcx .tcx-types{flex-wrap:wrap;justify-content:center;overflow:visible;scroll-snap-type:none}
+  #tcx .tcx-sheet-bd:not([hidden]){display:block;position:fixed;inset:0;z-index:1400;background:rgba(2,8,16,.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);animation:tcxBdIn .25s ease}
+  #tcx .tcx-boatform:not([hidden]){position:fixed;left:0;right:0;bottom:0;z-index:1401;max-width:none;margin:0;border-radius:20px 20px 0 0;padding:22px 16px calc(16px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto;box-shadow:0 -24px 60px -18px rgba(0,8,20,.88);animation:tcxSheetUp .3s cubic-bezier(.22,1,.36,1)}
+  #tcx .tcx-boatform:not([hidden])::before{content:"";position:absolute;top:9px;left:50%;transform:translateX(-50%);width:42px;height:4px;border-radius:999px;background:rgba(143,233,255,.45)}
 }`;
 
 function buildDOM(host:HTMLElement){
@@ -250,6 +258,7 @@ function buildDOM(host:HTMLElement){
       <p>Bootstyp wählen · Tiefgang am Regler oder per Eingabe einstellen · der Captain-Score bewertet <b>Tiefe, Wind & Sperrungen</b> in einem Blick.</p>
     </div>
     <div class="tcx-garage" id="tcxGarage"></div>
+    <div class="tcx-sheet-bd" id="tcxSheetBd" hidden></div>
     <form class="tcx-boatform" id="tcxBoatForm" hidden>
       <div class="bf-row">
         <label>Name<input name="name" type="text" maxlength="24" placeholder="Mein Boot" required></label>
@@ -661,7 +670,7 @@ function renderGarage(){
   const chips=boats.map(b=>`<button class="tc-boat" type="button" data-id="${E(b.id)}"><span class="ic">${BOATS.find(x=>x.id===b.type)?.ic||'🚤'}</span><span class="nm">${E(b.name)}</span><span class="dr">${m2(b.draft)}</span><span class="x" data-del="${E(b.id)}" title="löschen" role="button" aria-label="löschen">×</span></button>`).join('');
   host.innerHTML=`<span class="gar-lab">⚓ Meine Boote</span>${chips}<button class="tc-boat add" id="tcxBoatAdd" type="button">＋ Boot speichern</button>`;
 }
-function toggleBoatForm(show:boolean){ const f=document.getElementById('tcxBoatForm') as HTMLFormElement|null; if(!f) return; f.hidden=!show; if(show){ (f.querySelector('[name=type]') as HTMLSelectElement).value=BOATS[typeIdx].id; (f.querySelector('[name=draft]') as HTMLInputElement).value=draftT.toFixed(2).replace('.',','); (f.querySelector('[name=name]') as HTMLInputElement).focus(); } }
+function toggleBoatForm(show:boolean){ const f=document.getElementById('tcxBoatForm') as HTMLFormElement|null; if(!f) return; f.hidden=!show; const bd=document.getElementById('tcxSheetBd'); if(bd) bd.hidden=!show; if(show){ (f.querySelector('[name=type]') as HTMLSelectElement).value=BOATS[typeIdx].id; (f.querySelector('[name=draft]') as HTMLInputElement).value=draftT.toFixed(2).replace('.',','); (f.querySelector('[name=name]') as HTMLInputElement).focus(); } }
 function wireGarage(){
   const host=document.getElementById('tcxGarage');
   host?.addEventListener('click',e=>{
@@ -684,6 +693,7 @@ function wireGarage(){
     form.reset();
   });
   form?.querySelector('[data-cancel]')?.addEventListener('click',()=>{ toggleBoatForm(false); });
+  document.getElementById('tcxSheetBd')?.addEventListener('click',()=>{ toggleBoatForm(false); });
   form?.querySelector('[data-cur]')?.addEventListener('click',()=>{ (form.querySelector('[name=type]') as HTMLSelectElement).value=BOATS[typeIdx].id; (form.querySelector('[name=draft]') as HTMLInputElement).value=draftT.toFixed(2).replace('.',','); });
 }
 
