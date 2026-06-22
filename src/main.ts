@@ -19,6 +19,7 @@ import { initFavorites } from './ui/favorites';
 import { initTourSuggest } from './ui/toursuggest';
 import { initNele, type NeleState } from './ui/nele';
 import { initDestination } from './ui/destination';
+import { initQuickPlanner } from './ui/quickplanner';
 import { initRoute, setRouteDestination } from './ui/route';
 import { initVision } from './ui/vision';
 import { initMapMarkers } from './ui/mapmarkers';
@@ -236,6 +237,7 @@ async function boot() {
       });
     }).catch(e => console.error('Explorer-Daten nicht ladbar', e));
     initDestination(api);
+    initQuickPlanner();
     initRoute(api, () => doc);
     (window as any).__wl3routeTo = (ll: [number, number], name?: string) => { try { setRouteDestination(ll, name); } catch { /* */ } };
     initVision(api);
