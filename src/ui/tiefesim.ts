@@ -60,7 +60,7 @@ let bedLabel = 'typ. Fahrrinnentiefe (Median)';
 let groups: Record<string, FTItem[]> = {};
 let sectionKey = 'auto';
 let running = false, rafId = 0, t = 0;
-let cv:HTMLCanvasElement, ctx:CanvasRenderingContext2D, W=0, H=0, DPR=1;
+let cv:any=null, ctx:any=null, W=0, H=0, DPR=1;   // M41: 2D-Engine stillgelegt (Cockpit nutzt depth3d/WebGL)
 let roT:any = 0;
 const bubbles:{x:number;y:number;s:number;sp:number}[] = [];
 
@@ -269,6 +269,9 @@ const CSS_M40 = `
   #tcx .tcx-adjust{display:none}
   #tcx .tcx-adjust.open{display:block;animation:tcxAdjIn .3s ease}
 }
+#tcx .tcx-dialbox{display:flex;flex-direction:column;align-items:center;gap:5px;max-width:1180px;margin:2px auto 0;padding:4px 0}
+#tcx .tcx-dialbox .dialwrap{position:static;transform:none;left:auto;bottom:auto}
+#tcx .tcx-dialbox .tcx-src{position:static;max-width:none;text-align:center;background:none;color:#86a8bc;padding:0}
 @keyframes tcxAdjIn{from{opacity:0}to{opacity:1}}`;
 
 function buildDOM(host:HTMLElement){
@@ -297,13 +300,7 @@ function buildDOM(host:HTMLElement){
       <div class="bf-act"><button type="button" class="bf-cur" data-cur>aktuelles übernehmen</button><span class="bf-sp"></span><button type="button" class="bf-cancel" data-cancel>abbrechen</button><button type="submit" class="bf-save">speichern</button></div>
     </form>
     <div class="tcx-types" id="tcxTypes"></div>
-    <div class="stage" id="tcxStage">
-      <canvas id="tcxSea"></canvas>
-      <div class="vig"></div>
-      <div class="hud hud-status" id="tcxStatus"><span class="dot"></span><span class="st">—</span></div>
-      <div class="hud hud-left"><div class="lab">Tiefgang</div><div class="val" id="tcxDraft">1,00<span class="u"> m</span></div></div>
-      <div class="hud hud-right"><div class="lab">Fahrrinnentiefe</div><div class="val" id="tcxBed">1,29<span class="u"> m</span></div></div>
-      <div class="verdict" id="tcxVerdict"><div class="big">—</div><div class="sub" id="tcxSub"></div></div>
+    <div class="tcx-dialbox">
       <div class="dialwrap">
         <div class="dial" id="tcxDial" tabindex="0" role="slider" aria-label="Tiefgang einstellen" aria-valuemin="0.1" aria-valuemax="3" aria-valuenow="1.0">
           <svg viewBox="0 0 120 120"><defs>
@@ -326,15 +323,6 @@ function buildDOM(host:HTMLElement){
       <div class="pr-field"><input id="tcxDraftInput" type="text" inputmode="decimal" aria-label="Tiefgang in Meter" value="1,00"><span class="pr-u">m</span></div>
       <button class="pr-btn" id="tcxPlus" type="button" aria-label="Tiefgang 5 cm erhöhen">＋</button>
       <span class="pr-hint">Tiefgang exakt: Regler oben · −/＋ in 5-cm-Schritten · oder Wert eintippen</span>
-    </div>
-    <div class="tcx-score" id="tcxScore">
-      <div class="sc-ring"><svg viewBox="0 0 120 120"><circle class="sc-bg" cx="60" cy="60" r="50"/><circle id="scArc" class="sc-arc ok" cx="60" cy="60" r="50" stroke-dasharray="0 314" transform="rotate(-90 60 60)"/></svg><div class="sc-center"><div class="sc-num" id="scNum">–</div><div class="sc-of">/ 100</div></div></div>
-      <div class="sc-body">
-        <div class="sc-top"><span class="sc-ttl">Captain-Score</span><span class="sc-stars" id="scStars"></span><span class="sc-hd" id="scHead"></span></div>
-        <div class="sc-verdict" id="scVerdict">Tiefgang einstellen — der Score bewertet die Strecke aus echten Daten.</div>
-        <div class="sc-drivers" id="scDrivers"></div>
-        <div class="sc-foot">Heuristik aus echten Daten: ELWIS-Fahrrinnentiefen · Open-Meteo-Wind · ELWIS-Sperrungen. Keine Gewähr — verbindlich bleibt ELWIS.</div>
-      </div>
     </div>
     </div><!-- /tcxAdjust -->
     <div class="tcx-warn" id="tcxWarn"></div>
@@ -479,17 +467,26 @@ function recompute(){
 }
 
 /* ── Gesammeltes Re-Rendern aller HTML-Anzeigen (nicht im rAF-Loop) ── */
-function renderReadout(){ renderScore(); renderWarnings(); renderProfile(); renderBars(); updateAdjSum(); }
+function renderReadout(){ renderScore(); renderWarnings(); renderProfile(); renderBars(); updateAdjSum(); renderDial(); }
+/* ── Dreh-Regler-SVG aktualisieren (entkoppelt vom alten Canvas-Loop) ── */
+function renderDial(){
+  const d=draftT;
+  const dv=document.getElementById('tcxDialV'); if(dv) dv.textContent=d.toFixed(2).replace('.',',');
+  const frac=(d-0.1)/(MAXD-0.1);
+  const arc=document.getElementById('tcxArcV'); if(arc) arc.setAttribute('stroke-dasharray',(frac*245)+' 327');
+  const ndl=document.getElementById('tcxNeedle'); if(ndl) ndl.setAttribute('transform','rotate('+(-135+frac*270)+' 60 60)');
+  const dl=document.getElementById('tcxDial'); if(dl) dl.setAttribute('aria-valuenow',d.toFixed(2));
+}
 function readoutSoon(){ clearTimeout(roT); roT=setTimeout(renderReadout,140); }
 
 function renderScore(){
-  const host=document.getElementById('tcxScore'); if(!host) return;
   const items=scopeItems();
   const s = captainDepthScore({
     draftCm: Math.round(draftT*100), recCm: recReserveCm(), depthsCm: reportedCm(items),
     scopeLabel: scopeLabel(), wind: computeWind(), closures: matchClosures(items), pegel: pegelTrend,
   });
   (window as any).__wlDepthScore = s;
+  const host=document.getElementById('tcxScore'); if(!host) return;
   const num=document.getElementById('scNum'); if(num) num.textContent=String(s.score);
   const arc=document.getElementById('scArc'); if(arc){ const CR=2*Math.PI*50; arc.setAttribute('stroke-dasharray',`${(s.score/100*CR).toFixed(1)} ${CR.toFixed(1)}`); arc.setAttribute('class','sc-arc '+s.cls); }
   const stars=document.getElementById('scStars'); if(stars){ stars.textContent='★'.repeat(s.stars)+'☆'.repeat(5-s.stars); stars.className='sc-stars '+s.cls; }
@@ -595,6 +592,7 @@ function drawBoat(id:string, keelPx:number, w:number){
 }
 
 function frame(){
+  if(!cv||!ctx) return;   // M41: 2D-Unterwasser-Szene entfernt — Cockpit rendert 3D (depth3d)
   t += 0.016; draft += (draftT-draft)*0.12;
   const waterY=H*0.15, pxM=(H-waterY-22)/MAXD;
   const keelY=waterY+draft*pxM, bedY=waterY+Math.min(bedDepth,MAXD)*pxM;
@@ -660,7 +658,7 @@ function wireDial(){
   dial.addEventListener('wheel',(e:any)=>{ e.preventDefault(); draftT=+clampN(draftT+(e.deltaY>0?-0.05:0.05),0.1,MAXD).toFixed(2); saveDraft(); syncInput(); readoutSoon(); },{passive:false});
   dial.addEventListener('keydown',(e:any)=>{ if(e.key==='ArrowRight'||e.key==='ArrowUp'){ setDraft(draftT+0.05); e.preventDefault(); } else if(e.key==='ArrowLeft'||e.key==='ArrowDown'){ setDraft(draftT-0.05); e.preventDefault(); } });
 }
-function syncInput(){ const inp=document.getElementById('tcxDraftInput') as HTMLInputElement|null; if(inp && document.activeElement!==inp) inp.value=draftT.toFixed(2).replace('.',','); }
+function syncInput(){ const inp=document.getElementById('tcxDraftInput') as HTMLInputElement|null; if(inp && document.activeElement!==inp) inp.value=draftT.toFixed(2).replace('.',','); renderDial(); }
 
 /* ── Steuerung: Präzisionseingabe (−/＋/Zahl) ── */
 function wirePrecision(){
@@ -763,19 +761,9 @@ export function initTiefeSim(doc:any, ctx2?:TiefeCtx){
   if(ctx2){ ctxWeather=ctx2.weather??null; ctxNotices=ctx2.notices??null; }
   loadBoats();
   buildDOM(sect);
-  cv=document.getElementById('tcxSea') as HTMLCanvasElement; ctx=cv.getContext('2d')!; DPR=Math.min(devicePixelRatio||1,2);
-  for(let i=0;i<14;i++) bubbles.push({x:Math.random(),y:Math.random(),s:1+Math.random()*2,sp:.15+Math.random()*.3});
   try{ const s=localStorage.getItem('wl_draft'); if(s && +s>=0.1 && +s<=MAXD){ draftT=+s; draft=+s; } else { draftT=BOATS[typeIdx].draft; draft=draftT; } }catch{ draftT=BOATS[typeIdx].draft; draft=draftT; }
   (window as any).__wlDraft = draftT;
   (window as any).__wlSetDraft = (m:number)=>{ try{ setDraft(+m); }catch{ /* */ } };
-  resize(); renderGarage(); wireDial(); wirePrecision(); wireGarage(); wireControls(); wireAdjust();
-  if('ResizeObserver' in window){ new ResizeObserver(()=>{ resize(); if(reduceMotion()) frame(); }).observe(cv); } else addEventListener('resize',resize);
-  ft=doc; recompute();
-  const stage=document.getElementById('tcxStage')!; let onScreen=false;
-  const upd=()=>{ if(onScreen && !document.hidden) start(); else stop(); };
-  if('IntersectionObserver' in window){ new IntersectionObserver(es=>{ onScreen=es[0].isIntersecting; upd(); },{rootMargin:'80px'}).observe(stage); }
-  else { onScreen=true; }
-  document.addEventListener('visibilitychange',upd);
-  frame();
-  upd();
+  renderGarage(); wireDial(); wirePrecision(); wireGarage(); wireControls(); wireAdjust();
+  ft=doc; recompute(); renderDial();
 }
