@@ -10,6 +10,7 @@ import { windAdvice } from '../lib/wind';
 import { currentMode } from './modes';
 import { activeToday, fetchTrend } from '../lib/live';
 import { captainDepthScore } from '../lib/depthscore';
+import { renderProfileCockpit } from './profilecockpit';
 
 interface FTItem { revier?:string; group?:string; abk?:string; section?:string; kind?:string; value?:string; cm?:number|null; status?:string }
 interface FTDoc { updated_de?:string; stand?:string; items?:FTItem[] }
@@ -501,30 +502,21 @@ function profInfo(sec:string, cm:number, dCm:number, rec:number){
   return `<b>${E(sec)}</b> · Fahrrinnentiefe ${m2(cm/100)} · bei ${m2(draftT)} Tiefgang: ${verd} <span style="color:#7fa0b4">(empf. ${rec} cm)</span>`;
 }
 function renderProfile(){
-  const scroll=document.getElementById('pfScroll'); const scopeEl=document.getElementById('pfScope'); const info=document.getElementById('pfInfo');
-  if(!scroll) return;
+  const hostP=document.getElementById('tcxProfile'); if(!hostP) return;
+  const dCm=Math.round(draftT*100), rec=recReserveCm();
   const single = sectionKey!=='auto' && !!groups[sectionKey];
   const order = single? [sectionKey] : Object.keys(groups);
-  const dCm=Math.round(draftT*100), rec=recReserveCm();
-  const all = reportedCm(ft?.items||[]);
-  const scale = Math.max(300, dCm+rec, ...(all.length?all:[300]));
-  let html=''; let segCount=0;
+  const segs:{group:string;sec:string;cm:number}[]=[];
+  const grp:{name:string;minCm:number;avgCm:number;count:number;worst:'ok'|'tight'|'bad'}[]=[];
   for(const g of order){
     const its=(groups[g]||[]).filter(i=>i.cm!=null); if(!its.length) continue;
-    if(!single && order.length>1) html+=`<div class="pf-grp"><span>${E(g)}</span></div>`;
-    for(const i of its){
-      const cm=i.cm as number, clr=cm-dCm, cls=clr>=rec?'ok':clr>=0?'tight':'bad';
-      const ic=cls==='bad'?'⛔':cls==='tight'?'⚠️':''; const h=Math.max(6,Math.min(100,cm/scale*100));
-      html+=`<button class="pf-seg ${cls}" type="button" data-cm="${cm}" data-sec="${E(i.section||g)}" style="--h:${h}%" title="${E(i.section||g)}: ${m2(cm/100)}"><span class="pf-fill"></span>${ic?`<span class="pf-ic">${ic}</span>`:''}</button>`;
-      segCount++;
-    }
+    const cms=its.map(i=>i.cm as number);
+    for(const i of its) segs.push({group:g, sec:String(i.section||g), cm:i.cm as number});
+    const minCm=Math.min(...cms), avgCm=Math.round(cms.reduce((a,b)=>a+b,0)/cms.length);
+    const wclr=minCm-dCm;
+    grp.push({name:g, minCm, avgCm, count:its.length, worst: wclr>=rec?'ok':wclr>=0?'tight':'bad'});
   }
-  scroll.innerHTML = html || '<div class="pf-empty">Keine gemeldeten Tiefen.</div>';
-  const recPct=Math.min(100,(dCm+rec)/scale*100), drPct=Math.min(100,dCm/scale*100);
-  const lr=document.getElementById('pfLineRec'), ld=document.getElementById('pfLineDraft');
-  if(lr) (lr as HTMLElement).style.bottom=recPct+'%'; if(ld) (ld as HTMLElement).style.bottom=drPct+'%';
-  if(scopeEl) scopeEl.textContent=`· ${segCount} gemeldete Abschnitte · gleich breit, keine GPS-Distanzen`;
-  if(info && !(info as HTMLElement).dataset.touched){ const mn=minSection(scopeItems()); info.innerHTML = (mn&&mn.cm!=null)? profInfo(mn.section||mn.group||'', mn.cm as number, dCm, rec) : 'Balken antippen für Abschnitts-Details.'; }
+  renderProfileCockpit({ host:hostP, segs, groups:grp, draftCm:dCm, reserveCm:rec, sectionKey, pegel: (pegelTrend as any) });
 }
 
 function renderBars(){
