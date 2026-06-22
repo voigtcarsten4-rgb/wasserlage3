@@ -60,7 +60,8 @@ let bedLabel = 'typ. Fahrrinnentiefe (Median)';
 let groups: Record<string, FTItem[]> = {};
 let sectionKey = 'auto';
 let running = false, rafId = 0, t = 0;
-let cv:any=null, ctx:any=null, W=0, H=0, DPR=1;   // M41: 2D-Engine stillgelegt (Cockpit nutzt depth3d/WebGL)
+let cv:any=null, ctx:any=null, W=0, H=0, DPR=1;   // 2D-Tiefgang-Simulator (M44 reaktiviert + mit Cockpit synchronisiert)
+let bedShown=1.29; let simPreviewCm:number|null=null;
 let roT:any = 0;
 const bubbles:{x:number;y:number;s:number;sp:number}[] = [];
 
@@ -85,7 +86,7 @@ const CSS = `
 #tcx .stage{position:relative;width:100%;max-width:1180px;margin:0 auto;border-radius:22px;overflow:hidden;
   box-shadow:0 38px 80px -36px rgba(0,8,20,.85),inset 0 1px 0 rgba(255,255,255,.06),inset 0 0 0 1px rgba(217,177,77,.16);
   border:1px solid rgba(143,233,255,.14)}
-#tcx canvas{display:block;width:100%;height:clamp(380px,54vh,560px)}
+#tcx canvas{display:block;width:100%;height:clamp(230px,30vh,300px)}
 #tcx .vig{position:absolute;inset:0;pointer-events:none;z-index:2;background:radial-gradient(125% 96% at 50% 40%,transparent 55%,rgba(2,10,18,.55) 100%)}
 #tcx .hud{position:absolute;z-index:4;background:rgba(7,26,40,.4);backdrop-filter:blur(13px);-webkit-backdrop-filter:blur(13px);
   border:1px solid rgba(143,233,255,.18);border-radius:15px;padding:9px 14px;box-shadow:0 14px 32px -18px rgba(0,8,20,.7),inset 0 1px 0 rgba(217,177,77,.14)}
@@ -238,7 +239,7 @@ const CSS_X = `
   #tcx .sc-body{width:100%}#tcx .sc-top,#tcx .sc-drivers{justify-content:center}
   #tcx .pr-field input{font-size:21px;width:64px}
   #tcx .tcx-types,#tcx .tcx-precision,#tcx .tcx-score,#tcx .tcx-warn,#tcx .tcx-profile,#tcx .tcx-ctrl,#tcx .tcx-detail,#tcx .tcx-note{margin-top:11px}
-  #tcx canvas{height:clamp(340px,46vh,480px)}
+  #tcx canvas{height:clamp(200px,28vh,260px)}
   #tcx .pf-bars{scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;gap:4px}
   #tcx .pf-seg{width:30px;scroll-snap-align:center}
   #tcx .pr-field{min-height:46px}
@@ -300,7 +301,13 @@ function buildDOM(host:HTMLElement){
       <div class="bf-act"><button type="button" class="bf-cur" data-cur>aktuelles übernehmen</button><span class="bf-sp"></span><button type="button" class="bf-cancel" data-cancel>abbrechen</button><button type="submit" class="bf-save">speichern</button></div>
     </form>
     <div class="tcx-types" id="tcxTypes"></div>
-    <div class="tcx-dialbox">
+    <div class="stage" id="tcxStage">
+      <canvas id="tcxSea"></canvas>
+      <div class="vig"></div>
+      <div class="hud hud-status" id="tcxStatus"><span class="dot"></span><span class="st">—</span></div>
+      <div class="hud hud-left"><div class="lab">Tiefgang</div><div class="val" id="tcxDraft">1,00<span class="u"> m</span></div></div>
+      <div class="hud hud-right"><div class="lab">Fahrrinnentiefe</div><div class="val" id="tcxBed">1,29<span class="u"> m</span></div></div>
+      <div class="verdict" id="tcxVerdict"><div class="big">—</div><div class="sub" id="tcxSub"></div></div>
       <div class="dialwrap">
         <div class="dial" id="tcxDial" tabindex="0" role="slider" aria-label="Tiefgang einstellen" aria-valuemin="0.1" aria-valuemax="3" aria-valuenow="1.0">
           <svg viewBox="0 0 120 120"><defs>
@@ -452,8 +459,9 @@ function recompute(){
   }
   /* bedDepth gemäß Auswahl: auto=Median aller, sonst min des Abschnitts (limitierend) */
   if (sectionKey==='auto' || !groups[sectionKey]){
-    bedDepth = median(reportedCm(items))/100 || 1.29;
-    bedLabel = 'typ. Fahrrinnentiefe (Median)';
+    const rcA = reportedCm(items);
+    bedDepth = (rcA.length? Math.min(...rcA):0)/100 || 1.29;   // M44: engste Stelle = synchron mit Cockpit-Verdikt
+    bedLabel = 'engste Fahrrinnentiefe (Gesamtnetz)';
   } else {
     const rc = reportedCm(groups[sectionKey]);
     bedDepth = (rc.length? Math.min(...rc):0)/100 || 1.29;
@@ -592,12 +600,13 @@ function drawBoat(id:string, keelPx:number, w:number){
 }
 
 function frame(){
-  if(!cv||!ctx) return;   // M41: 2D-Unterwasser-Szene entfernt — Cockpit rendert 3D (depth3d)
+  if(!cv||!ctx) return;
   t += 0.016; draft += (draftT-draft)*0.12;
+  const bedTarget=(simPreviewCm!=null?simPreviewCm/100:bedDepth); bedShown += (bedTarget-bedShown)*0.16; const bedM=clampN(bedShown,0.05,MAXD);  // M44: synchrone, weiche Tiefen-Animation
   const waterY=H*0.15, pxM=(H-waterY-22)/MAXD;
-  const keelY=waterY+draft*pxM, bedY=waterY+Math.min(bedDepth,MAXD)*pxM;
-  const recCm=recReserveCm(), clrCm=Math.round((bedDepth-draft)*100);
-  const recY=waterY+Math.max(0,(bedDepth-recCm/100))*pxM;
+  const keelY=waterY+draft*pxM, bedY=waterY+Math.min(bedM,MAXD)*pxM;
+  const recCm=recReserveCm(), clrCm=Math.round((bedM-draft)*100);
+  const recY=waterY+Math.max(0,(bedM-recCm/100))*pxM;
   const v=verdictFor(clrCm, recCm);
   ctx.clearRect(0,0,W,H);
   let sky=ctx.createLinearGradient(0,0,0,waterY); sky.addColorStop(0,'#0c2c41'); sky.addColorStop(1,'#16506b'); ctx.fillStyle=sky; ctx.fillRect(0,0,W,waterY);
@@ -629,7 +638,7 @@ function frame(){
   if (clrCm>=0){ ctx.strokeStyle=hex(v.c,.9); ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx+95,keelY); ctx.lineTo(cx+95,bedY); ctx.moveTo(cx+90,keelY); ctx.lineTo(cx+100,keelY); ctx.moveTo(cx+90,bedY); ctx.lineTo(cx+100,bedY); ctx.stroke();
     ctx.fillStyle=v.c; ctx.font='700 13px system-ui'; ctx.fillText('≈ '+clrCm+' cm', cx+106, (keelY+bedY)/2+4); }
   const dEl=document.getElementById('tcxDraft'); if(dEl) dEl.innerHTML=draft.toFixed(2).replace('.',',')+'<span class="u"> m</span>';
-  const bEl=document.getElementById('tcxBed'); if(bEl) bEl.innerHTML=bedDepth.toFixed(2).replace('.',',')+'<span class="u"> m</span>';
+  const bEl=document.getElementById('tcxBed'); if(bEl) bEl.innerHTML=bedM.toFixed(2).replace('.',',')+'<span class="u"> m</span>';
   const stt=document.getElementById('tcxStatus'); if(stt){ const dot=stt.querySelector('.dot') as HTMLElement, st=stt.querySelector('.st') as HTMLElement; dot.style.color=v.c; dot.style.background=v.c; st.textContent=v.t.replace(/[✅⚠❌]\s?/,''); st.style.color=v.c; }
   const vd=document.getElementById('tcxVerdict'); if(vd){ const big=vd.querySelector('.big') as HTMLElement; big.textContent=v.t; big.style.color=v.c; }
   const sub=document.getElementById('tcxSub'); if(sub) sub.textContent = clrCm>=0 ? (`Kielreserve ${clrCm} cm · empfohlen ≥ ${recCm} cm · ${v.tip}`) : (`${Math.abs(clrCm)} cm zu tief · ${v.tip}`);
@@ -747,9 +756,8 @@ function setAdjustOpen(open:boolean, persist=false){
 }
 function wireAdjust(){
   const btn=document.getElementById('tcxAdjBtn'); if(!btn) return;
-  const mobile = matchMedia('(max-width:760px)').matches;
-  let open = !mobile;                                  // Desktop: offen
-  if(mobile){ try{ open = localStorage.getItem('wl_tcx_open')==='1'; }catch{ open=false; } }  // Handy: zu, außer gemerkt
+  let open = true;   // M44: Tiefgang-Simulator standardmäßig sichtbar
+  try{ const s=localStorage.getItem('wl_tcx_open'); if(s!=null) open = s==='1'; }catch{ /* */ }
   setAdjustOpen(open);
   btn.addEventListener('click',()=>{ const p=document.getElementById('tcxAdjust'); setAdjustOpen(!p?.classList.contains('open'), true); });
   updateAdjSum();
@@ -764,6 +772,15 @@ export function initTiefeSim(doc:any, ctx2?:TiefeCtx){
   try{ const s=localStorage.getItem('wl_draft'); if(s && +s>=0.1 && +s<=MAXD){ draftT=+s; draft=+s; } else { draftT=BOATS[typeIdx].draft; draft=draftT; } }catch{ draftT=BOATS[typeIdx].draft; draft=draftT; }
   (window as any).__wlDraft = draftT;
   (window as any).__wlSetDraft = (m:number)=>{ try{ setDraft(+m); }catch{ /* */ } };
+  cv=document.getElementById('tcxSea'); if(cv){ ctx=cv.getContext('2d'); DPR=Math.min(devicePixelRatio||1,2); bubbles.length=0; for(let i=0;i<14;i++) bubbles.push({x:Math.random(),y:Math.random(),s:1+Math.random()*2,sp:.15+Math.random()*.3}); resize(); }
+  bedShown = bedDepth;
+  (window as any).__wlSimBed = (cm:number|null)=>{ simPreviewCm = (cm!=null && isFinite(+cm)) ? +cm : null; if(reduceMotion()) frame(); };
   renderGarage(); wireDial(); wirePrecision(); wireGarage(); wireControls(); wireAdjust();
+  if(cv && 'ResizeObserver' in window){ new ResizeObserver(()=>{ resize(); if(reduceMotion()) frame(); }).observe(cv); }
   ft=doc; recompute(); renderDial();
+  const stage=document.getElementById('tcxStage'); let onScreen=false;
+  const upd=()=>{ if(onScreen && !document.hidden) start(); else stop(); };
+  if(stage && 'IntersectionObserver' in window){ new IntersectionObserver(es=>{ onScreen=es[0].isIntersecting; upd(); },{rootMargin:'80px'}).observe(stage); } else { onScreen=true; }
+  document.addEventListener('visibilitychange',upd);
+  if(cv){ frame(); upd(); }
 }

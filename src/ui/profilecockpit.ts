@@ -178,7 +178,7 @@ const CSS2 = `
 #tcx .pc-sol-map .sol-cta{color:#bfe6f5;background:rgba(143,233,255,.14);box-shadow:none}
 #tcx .pc-cop-note{font-size:10px;color:#86a8bc;margin-top:2px;line-height:1.4}
 #tcx .pc-flash{animation:pcFlash 1.3s ease}@keyframes pcFlash{0%{box-shadow:0 0 0 0 rgba(232,198,107,.5)}100%{box-shadow:0 0 0 22px rgba(232,198,107,0)}}
-@media(min-width:681px){#tcx #tcxStage canvas{height:clamp(300px,42vh,400px)}}
+@media(min-width:681px){#tcx #tcxStage canvas{height:clamp(230px,32vh,320px)}}
 #tcx .tcx-score,#tcx .tcx-warn,#tcx .tcx-precision{margin-top:12px}
 @media(max-width:680px){#tcx .pc-copilot{padding:9px 10px}#tcx .pc-sol{padding:8px 9px;font-size:11.5px;gap:8px}#tcx .pc-sol .sol-cta{padding:6px 9px;font-size:11px}#tcx .pc-cop-h{font-size:12px}#tcx .pc-verdict{padding:11px 12px}#tcx .pc-strip{font-size:11px}}`;
 
@@ -270,9 +270,9 @@ function ensureCanvas() {
   try { io = new IntersectionObserver(es => { onScreen = es[0].isIntersecting; sync(); }, { rootMargin: '120px' }); io.observe(c.parentElement!); } catch { onScreen = true; sync(); }
   document.addEventListener('visibilitychange', sync);
   let pinned = false;
-  const pos = (ev: PointerEvent) => { pinned = ev.pointerType === 'touch'; const r = c.getBoundingClientRect(); hoverX = clamp((ev.clientX - r.left) / r.width, 0, 1); const tip = host!.querySelector('#pcTip') as HTMLElement, f = floorAt(hoverX); if (tip && DATA) { const clr = Math.round(f.cm - DATA.draftCm), m = clr >= DATA.reserveCm ? '✅' : clr >= 0 ? '⚠️' : '⛔'; tip.innerHTML = `<b>${E(f.sec || f.group)}</b> · ${m2(f.cm / 100)} · ${m} ${clr >= 0 ? clr + ' cm Reserve' : Math.abs(clr) + ' cm zu flach'}`; tip.style.opacity = '1'; } if (reduceMotion()) draw(0); };
+  const pos = (ev: PointerEvent) => { pinned = ev.pointerType === 'touch'; const r = c.getBoundingClientRect(); hoverX = clamp((ev.clientX - r.left) / r.width, 0, 1); const tip = host!.querySelector('#pcTip') as HTMLElement, f = floorAt(hoverX); try{ (window as any).__wlSimBed && (window as any).__wlSimBed(f.cm); }catch{ /* */ } if (tip && DATA) { const clr = Math.round(f.cm - DATA.draftCm), m = clr >= DATA.reserveCm ? '✅' : clr >= 0 ? '⚠️' : '⛔'; tip.innerHTML = `<b>${E(f.sec || f.group)}</b> · ${m2(f.cm / 100)} · ${m} ${clr >= 0 ? clr + ' cm Reserve' : Math.abs(clr) + ' cm zu flach'}`; tip.style.opacity = '1'; } if (reduceMotion()) draw(0); };
   c.addEventListener('pointermove', pos); c.addEventListener('pointerdown', pos);
-  c.addEventListener('pointerleave', () => { if (pinned) return; hoverX = -1; const tip = host!.querySelector('#pcTip') as HTMLElement; if (tip) tip.style.opacity = '0'; if (reduceMotion()) draw(0); });
+  c.addEventListener('pointerleave', () => { if (pinned) return; hoverX = -1; try{ (window as any).__wlSimBed && (window as any).__wlSimBed(null); }catch{ /* */ } const tip = host!.querySelector('#pcTip') as HTMLElement; if (tip) tip.style.opacity = '0'; if (reduceMotion()) draw(0); });
 }
 function resize() { if (!cv) return; const w = cv.clientWidth || 320, h = cv.clientHeight || 200; W = Math.round(w * DPR); H = Math.round(h * DPR); if (cv.width !== W) cv.width = W; if (cv.height !== H) cv.height = H; }
 function sync() { const want = onScreen && !document.hidden && !reduceMotion(); if (want && !running) { running = true; lastTs = 0; raf = requestAnimationFrame(loop); } else if (!want && running) { running = false; cancelAnimationFrame(raf); } }
