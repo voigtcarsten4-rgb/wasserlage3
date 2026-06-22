@@ -779,7 +779,7 @@ export function initTiefeSim(doc:any, ctx2?:TiefeCtx){
   if(cv && 'ResizeObserver' in window){ new ResizeObserver(()=>{ resize(); if(reduceMotion()) frame(); }).observe(cv); }
   ft=doc; recompute(); renderDial();
   const stage=document.getElementById('tcxStage'); let onScreen=false;
-  const upd=()=>{ if(onScreen && !document.hidden) start(); else stop(); };
+  const upd=()=>{ if(onScreen && !document.hidden){ if(!running){ try{ bedShown=(simPreviewCm!=null?simPreviewCm/100:bedDepth); }catch{ /* */ } } start(); } else stop(); };
   if(stage && 'IntersectionObserver' in window){ new IntersectionObserver(es=>{ onScreen=es[0].isIntersecting; upd(); },{rootMargin:'80px'}).observe(stage); } else { onScreen=true; }
   document.addEventListener('visibilitychange',upd);
   if(cv){ frame(); upd(); }
