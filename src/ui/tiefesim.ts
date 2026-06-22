@@ -250,14 +250,37 @@ const CSS_X = `
   #tcx .tcx-boatform:not([hidden])::before{content:"";position:absolute;top:9px;left:50%;transform:translateX(-50%);width:42px;height:4px;border-radius:999px;background:rgba(143,233,255,.45)}
 }`;
 
+/* ── M40: Boot & Tiefgang einklappbar — Handy führt mit dem Entscheidungs-Cockpit ── */
+const CSS_M40 = `
+#tcx .tcx-adjbtn{display:none}
+#tcx .tcx-adjust{display:block}
+@media(max-width:760px){
+  #tcx .tcx-adjbtn{display:flex;width:100%;max-width:560px;margin:13px auto 0;align-items:center;gap:11px;
+    background:linear-gradient(180deg,rgba(9,30,46,.82),rgba(7,26,40,.6));border:1px solid rgba(143,233,255,.22);
+    border-radius:15px;padding:12px 15px;cursor:pointer;color:#eafaff;text-align:left;
+    box-shadow:0 14px 30px -22px rgba(0,8,20,.85),inset 0 1px 0 rgba(217,177,77,.16);-webkit-tap-highlight-color:transparent;transition:transform .12s,border-color .2s}
+  #tcx .tcx-adjbtn:active{transform:scale(.99)}
+  #tcx .tcx-adjbtn .ab-ic{font-size:21px;flex:0 0 auto}
+  #tcx .tcx-adjbtn .ab-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+  #tcx .tcx-adjbtn .ab-tx b{font-size:13.5px;font-weight:800;color:#eafaff;letter-spacing:-.01em}
+  #tcx .tcx-adjbtn .ab-sum{font-size:11.5px;color:#9fd0e0;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #tcx .tcx-adjbtn .ab-chev{flex:0 0 auto;color:#6fe0e6;font-size:14px;transition:transform .3s}
+  #tcx .tcx-adjbtn[aria-expanded="true"] .ab-chev{transform:rotate(180deg)}
+  #tcx .tcx-adjust{display:none}
+  #tcx .tcx-adjust.open{display:block;animation:tcxAdjIn .3s ease}
+}
+@keyframes tcxAdjIn{from{opacity:0}to{opacity:1}}`;
+
 function buildDOM(host:HTMLElement){
   const boatOpts = BOATS.map(b=>`<option value="${b.id}">${b.ic} ${E(b.n)}</option>`).join('');
   host.innerHTML = `
   <div id="tcx">
     <div class="tcx-head">
       <h2>⚓ Tiefencheck — passt mein Boot? <span class="tcx-badge" id="tcxBadge">lädt…</span></h2>
-      <p>Bootstyp wählen · Tiefgang am Regler oder per Eingabe einstellen · der Captain-Score bewertet <b>Tiefe, Wind & Sperrungen</b> in einem Blick.</p>
+      <p>Stell <b>Boot &amp; Tiefgang</b> ein — der Tiefencheck zeigt dir sofort, wo's auf deiner Strecke eng wird: Fahrrinnen-Profil, Score &amp; Warnungen aus echten ELWIS-Daten.</p>
     </div>
+    <button class="tcx-adjbtn" id="tcxAdjBtn" type="button" aria-expanded="true" aria-controls="tcxAdjust"><span class="ab-ic">⚓</span><span class="ab-tx"><b>Boot &amp; Tiefgang einstellen</b><span class="ab-sum" id="tcxAdjSum">—</span></span><span class="ab-chev">▾</span></button>
+    <div class="tcx-adjust" id="tcxAdjust">
     <div class="tcx-garage" id="tcxGarage"></div>
     <div class="tcx-sheet-bd" id="tcxSheetBd" hidden></div>
     <form class="tcx-boatform" id="tcxBoatForm" hidden>
@@ -313,6 +336,7 @@ function buildDOM(host:HTMLElement){
         <div class="sc-foot">Heuristik aus echten Daten: ELWIS-Fahrrinnentiefen · Open-Meteo-Wind · ELWIS-Sperrungen. Keine Gewähr — verbindlich bleibt ELWIS.</div>
       </div>
     </div>
+    </div><!-- /tcxAdjust -->
     <div class="tcx-warn" id="tcxWarn"></div>
     <div class="tcx-profile" id="tcxProfile">
       <div class="pf-head">🧭 Fahrrinnen-Profil <small id="pfScope"></small></div>
@@ -455,7 +479,7 @@ function recompute(){
 }
 
 /* ── Gesammeltes Re-Rendern aller HTML-Anzeigen (nicht im rAF-Loop) ── */
-function renderReadout(){ renderScore(); renderWarnings(); renderProfile(); renderBars(); }
+function renderReadout(){ renderScore(); renderWarnings(); renderProfile(); renderBars(); updateAdjSum(); }
 function readoutSoon(){ clearTimeout(roT); roT=setTimeout(renderReadout,140); }
 
 function renderScore(){
@@ -714,9 +738,28 @@ function wireControls(){
   });
 }
 
+/* ── M40: Boot & Tiefgang einklappbar (Handy: standardmäßig zu, Desktop: offen) ── */
+function updateAdjSum(){ const el=document.getElementById('tcxAdjSum'); if(el) el.textContent=`${BOATS[typeIdx].ic} ${BOATS[typeIdx].n} · Tiefgang ${m2(draftT)}`; }
+function setAdjustOpen(open:boolean, persist=false){
+  const panel=document.getElementById('tcxAdjust'); const btn=document.getElementById('tcxAdjBtn');
+  if(!panel||!btn) return;
+  panel.classList.toggle('open', open); btn.setAttribute('aria-expanded', open?'true':'false');
+  if(persist){ try{ localStorage.setItem('wl_tcx_open', open?'1':'0'); }catch{ /* */ } }
+  if(open){ requestAnimationFrame(()=>{ try{ resize(); frame(); }catch{ /* */ } }); }
+}
+function wireAdjust(){
+  const btn=document.getElementById('tcxAdjBtn'); if(!btn) return;
+  const mobile = matchMedia('(max-width:760px)').matches;
+  let open = !mobile;                                  // Desktop: offen
+  if(mobile){ try{ open = localStorage.getItem('wl_tcx_open')==='1'; }catch{ open=false; } }  // Handy: zu, außer gemerkt
+  setAdjustOpen(open);
+  btn.addEventListener('click',()=>{ const p=document.getElementById('tcxAdjust'); setAdjustOpen(!p?.classList.contains('open'), true); });
+  updateAdjSum();
+}
+
 export function initTiefeSim(doc:any, ctx2?:TiefeCtx){
   const sect=document.getElementById('tiefe-sect'); if(!sect) return;
-  if(!document.getElementById('tcx-css')){ const st=document.createElement('style'); st.id='tcx-css'; st.textContent=CSS+CSS_X; document.head.appendChild(st); }
+  if(!document.getElementById('tcx-css')){ const st=document.createElement('style'); st.id='tcx-css'; st.textContent=CSS+CSS_X+CSS_M40; document.head.appendChild(st); }
   if(ctx2){ ctxWeather=ctx2.weather??null; ctxNotices=ctx2.notices??null; }
   loadBoats();
   buildDOM(sect);
@@ -725,7 +768,7 @@ export function initTiefeSim(doc:any, ctx2?:TiefeCtx){
   try{ const s=localStorage.getItem('wl_draft'); if(s && +s>=0.1 && +s<=MAXD){ draftT=+s; draft=+s; } else { draftT=BOATS[typeIdx].draft; draft=draftT; } }catch{ draftT=BOATS[typeIdx].draft; draft=draftT; }
   (window as any).__wlDraft = draftT;
   (window as any).__wlSetDraft = (m:number)=>{ try{ setDraft(+m); }catch{ /* */ } };
-  resize(); renderGarage(); wireDial(); wirePrecision(); wireGarage(); wireControls();
+  resize(); renderGarage(); wireDial(); wirePrecision(); wireGarage(); wireControls(); wireAdjust();
   if('ResizeObserver' in window){ new ResizeObserver(()=>{ resize(); if(reduceMotion()) frame(); }).observe(cv); } else addEventListener('resize',resize);
   ft=doc; recompute();
   const stage=document.getElementById('tcxStage')!; let onScreen=false;
