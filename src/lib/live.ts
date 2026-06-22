@@ -30,7 +30,25 @@ export async function fetchFT(): Promise<{updated_de:string; stand:string; havel
   const seen = new Set((live?.items || []).map(k));
   const items = [ ...(live?.items || []), ...((de?.items || []).filter((i: any) => !seen.has(k(i)))) ];
   const baseDoc = live || de;
-  return { ...baseDoc, items, stand: live?.stand || de?.stand, havel_min_cm: baseDoc.havel_min_cm };
+  /* ── Zuverlässigkeits-/Plausibilitäts-Wächter (M45) ──────────────────────────────
+   * ELWIS-„ng" (nicht gemeldet) darf NIE als harte Tiefe durchgehen. Ein bekannter Fehler im
+   * 2.0-Feed lieferte z. B. VKH „Schleuse Hohensaaten bis Einmündung in die Oder" als 19 cm/ok,
+   * obwohl ELWIS dort „ng" meldet — das verfälschte die „engste Stelle" und löste einen falschen
+   * ⛔ schon bei kleinem Tiefgang aus. Regel: cm zählt nur als verbindliche Tiefe, wenn der Wert
+   * eine echte Zahl IST und ≥ Sanity-Floor liegt (echte gemeldete Werte im Elbe-Oder-Netz ≥ ~0,6 m;
+   * unter ~0,4 m ist kein Binnen-Fahrwasser real befahrbar → Datenfehler/ng). Sonst cm=null →
+   * alle Verbraucher (reportedCm/minSection/segs/route) überspringen es automatisch und zeigen es
+   * ehrlich als „nicht gemeldet". */
+  const MIN_FT_CM = 40;
+  const guarded = items.map((i: any) => {
+    const numeric = /^\d+$/.test(String(i?.value ?? '').trim());
+    const cm = numeric ? parseInt(String(i.value), 10) : (typeof i?.cm === 'number' ? i.cm : null);
+    const reliable = numeric && cm != null && cm >= MIN_FT_CM;
+    return reliable
+      ? { ...i, cm }
+      : { ...i, cm: null, value: 'ng', status: (i?.status && i.status !== 'ok') ? i.status : 'nicht gemeldet', sev: 'grey', reliable: false, rawValue: i?.value };
+  });
+  return { ...baseDoc, items: guarded, stand: live?.stand || de?.stand, havel_min_cm: baseDoc.havel_min_cm };
 }
 
 /* Pegelonline: EIN Aggregat-Call statt 27 Einzelrequests (Lehre aus 2.0-Audit) */

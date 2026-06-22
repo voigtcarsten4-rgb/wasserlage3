@@ -176,6 +176,11 @@ const CSS_X = `
 #tcx .pr-btn{width:46px;height:46px;border-radius:13px;border:1px solid rgba(143,233,255,.22);background:rgba(7,26,40,.55);color:#eafaff;font-size:24px;font-weight:700;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;transition:transform .12s,background .2s,border-color .2s}
 #tcx .pr-btn:hover{border-color:var(--turq)}
 #tcx .pr-btn:active{transform:scale(.92);background:rgba(49,213,231,.22)}
+#tcx .dialwrap .dialrow{display:flex;align-items:center;justify-content:center;gap:16px}
+#tcx .pr-btn-dial{width:48px;height:48px;border-radius:50%;font-size:26px;flex:0 0 auto;background:rgba(7,26,40,.62);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-color:rgba(217,177,77,.34);box-shadow:0 10px 26px -14px rgba(0,8,20,.85),inset 0 1px 0 rgba(217,177,77,.18)}
+#tcx .pr-btn-dial:hover{border-color:var(--turq);transform:translateY(-1px)}
+#tcx .pr-btn-dial:active{transform:scale(.9);background:rgba(49,213,231,.26)}
+@media(max-width:680px){#tcx .dialwrap .dialrow{gap:12px;align-items:flex-end}#tcx .pr-btn-dial{width:44px;height:44px;font-size:23px}#tcx .dialwrap .pr-btn-dial{margin-bottom:-6px}}
 #tcx .pr-field{display:flex;align-items:baseline;gap:4px;background:rgba(7,26,40,.55);border:1px solid rgba(217,177,77,.34);border-radius:13px;padding:6px 12px}
 #tcx .pr-field input{width:74px;background:transparent;border:none;outline:none;color:#fff;font:800 24px var(--font-b,sans-serif);font-variant-numeric:tabular-nums;text-align:right}
 #tcx .pr-field .pr-u{font-size:14px;font-weight:700;color:#9fd0e0}
@@ -309,6 +314,8 @@ function buildDOM(host:HTMLElement){
       <div class="hud hud-right"><div class="lab">Fahrrinnentiefe</div><div class="val" id="tcxBed">1,29<span class="u"> m</span></div></div>
       <div class="verdict" id="tcxVerdict"><div class="big">—</div><div class="sub" id="tcxSub"></div></div>
       <div class="dialwrap">
+        <div class="dialrow">
+        <button class="pr-btn pr-btn-dial" id="tcxMinus" type="button" aria-label="Tiefgang 5 cm verringern">−</button>
         <div class="dial" id="tcxDial" tabindex="0" role="slider" aria-label="Tiefgang einstellen" aria-valuemin="0.1" aria-valuemax="3" aria-valuenow="1.0">
           <svg viewBox="0 0 120 120"><defs>
             <linearGradient id="tcxArc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#31D5E7"/><stop offset="1" stop-color="#24E08B"/></linearGradient>
@@ -321,15 +328,15 @@ function buildDOM(host:HTMLElement){
           </svg>
           <div class="center"><div class="dv" id="tcxDialV">1,00</div><div class="dl">Tiefgang m</div></div>
         </div>
-        <div class="hint">drehen · ziehen · ◀▶ · Mausrad</div>
+        <button class="pr-btn pr-btn-dial" id="tcxPlus" type="button" aria-label="Tiefgang 5 cm erhöhen">＋</button>
+        </div>
+        <div class="hint">−/＋ in 5-cm-Schritten · drehen · ziehen · ◀▶ · Mausrad</div>
       </div>
       <div class="tcx-src" id="tcxSrc">Quelle: ELWIS · lädt…</div>
     </div>
     <div class="tcx-precision">
-      <button class="pr-btn" id="tcxMinus" type="button" aria-label="Tiefgang 5 cm verringern">−</button>
       <div class="pr-field"><input id="tcxDraftInput" type="text" inputmode="decimal" aria-label="Tiefgang in Meter" value="1,00"><span class="pr-u">m</span></div>
-      <button class="pr-btn" id="tcxPlus" type="button" aria-label="Tiefgang 5 cm erhöhen">＋</button>
-      <span class="pr-hint">Tiefgang exakt: Regler oben · −/＋ in 5-cm-Schritten · oder Wert eintippen</span>
+      <span class="pr-hint">Tiefgang exakt eintippen · oder −/＋ am Dial oben (5-cm-Schritte)</span>
     </div>
     </div><!-- /tcxAdjust -->
     <div class="tcx-warn" id="tcxWarn"></div>
@@ -404,6 +411,8 @@ export function setTiefePegel(gauges:any[]){ ctxPegel = (gauges&&gauges.length)?
 
 function reportedCm(items:FTItem[]){ return items.filter(i=>i.cm!=null).map(i=>i.cm as number); }
 function median(arr:number[]){ if(!arr.length) return 0; const s=[...arr].sort((a,b)=>a-b); return s[Math.floor(s.length/2)]; }
+/* Alter des F/T-Snapshots in Tagen (Ehrlichkeit über Aktualität — kein 9 Tage alter „Live"-Schwindel) */
+function ftAgeDays(stand:string):number|null{ const m=/(\d{2})\.(\d{2})\.(\d{4})/.exec(stand||''); if(!m) return null; const d=new Date(+m[3],+m[2]-1,+m[1]); if(isNaN(d.getTime())) return null; return Math.floor((Date.now()-d.getTime())/86400000); }
 function scopeItems():FTItem[]{ return (sectionKey!=='auto' && groups[sectionKey]) ? groups[sectionKey] : (ft?.items || []); }
 function scopeLabel():string{ return (sectionKey!=='auto' && groups[sectionKey]) ? sectionKey : 'allen gemeldeten Revieren'; }
 function minSection(items:FTItem[]):FTItem|null{ let best:FTItem|null=null; for(const i of items){ if(i.cm==null) continue; if(!best||(i.cm as number)<(best.cm as number)) best=i; } return best; }
@@ -468,8 +477,13 @@ function recompute(){
     bedLabel = 'min. Fahrrinnentiefe '+sectionKey;
   }
   const stand = ft.stand || ft.updated_de || '';
-  if (badge){ badge.textContent='● Live · ELWIS'; badge.style.color='#9ff0d2'; }
-  if (src) src.textContent = `Quelle: ELWIS · ${bedLabel} · Stand ${stand||'—'}`;
+  const ageD = ftAgeDays(stand);
+  const stale = ageD != null && ageD >= 2;
+  if (badge){
+    if (stale){ badge.textContent = `● Stand vor ${ageD} Tg`; badge.style.color = '#ffd98a'; }
+    else { badge.textContent = '● Live · ELWIS'; badge.style.color = '#9ff0d2'; }
+  }
+  if (src) src.textContent = `Quelle: ELWIS · ${bedLabel} · Stand ${stand||'—'}${stale?` · ⚠️ ${ageD} Tage alt`:''}`;
   if (nEl){ const rep=reportedCm(items).length; nEl.textContent='('+rep+')'; }
   renderReadout();
 }
